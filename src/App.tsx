@@ -721,8 +721,7 @@ export default function App() {
   }, [selectedId, selectedLandmark, mobilePanelOpen, isMobile]);
 
   const chooseTree = (tree: Tree) => {
-    setFocusTreeId(isMobile ? tree.id : null);
-    if (isMobile) setFocusRequest((request) => request + 1);
+    setFocusTreeId(null);
     setSelectedId(tree.id);
     setSelectedLandmark(null);
     setMobilePanelOpen(false);
