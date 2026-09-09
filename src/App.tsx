@@ -8,6 +8,7 @@ const PLAN_URL = `${import.meta.env.BASE_URL}data/parc-oberthur.geojson`;
 const THABOR_PLAN_URL = `${import.meta.env.BASE_URL}data/parc-thabor.geojson`;
 const EMPTY_TREES: Tree[] = [];
 type ParkView = "oberthur" | "thabor";
+type MapViewMode = "2d" | "3d";
 const WIKIPEDIA_SEARCH_URL = "https://fr.wikipedia.org/w/index.php?search=";
 const WIKIPEDIA_API_URL = "https://fr.wikipedia.org/w/api.php?action=query&list=search&srlimit=1&format=json&origin=*&srsearch=";
 type TreeSort = "vernacular" | "scientific" | "count" | "height" | "crown";
@@ -552,6 +553,7 @@ export default function App() {
   const [selectedLandmark, setSelectedLandmark] = useState<ParkLandmark | null>(null);
   const [hoveredTreeId, setHoveredTreeId] = useState<string | null>(null);
   const [recenter, setRecenter] = useState(0);
+  const [mapViewMode, setMapViewMode] = useState<MapViewMode>("3d");
   const [mobilePanelOpen, setMobilePanelOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(() => window.matchMedia("(max-width: 760px)").matches);
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -813,25 +815,27 @@ export default function App() {
     <section className="map-area" aria-label="Carte et fiche arbre">
       <MapBoundary key={mapAttempt} onRetry={() => setMapAttempt((value) => value + 1)}>
         <Suspense fallback={<div className="map-notice" role="status">Chargement de la carte…</div>}>
-          <MapView trees={planOnly ? EMPTY_TREES : trees} plan={plan} visibleTrees={planOnly ? EMPTY_TREES : visibleTrees} selectedTree={planOnly ? null : selectedTree} focusTreeId={planOnly ? null : focusTreeId} focusRequest={focusRequest} hoveredTreeId={planOnly ? null : hoveredTreeId} onSelectTree={chooseTree} onSelectLandmark={chooseLandmark} recenter={recenter} />
+          <MapView trees={planOnly ? EMPTY_TREES : trees} plan={plan} visibleTrees={planOnly ? EMPTY_TREES : visibleTrees} selectedTree={planOnly ? null : selectedTree} focusTreeId={planOnly ? null : focusTreeId} focusRequest={focusRequest} viewMode={mapViewMode} hoveredTreeId={planOnly ? null : hoveredTreeId} onSelectTree={chooseTree} onSelectLandmark={chooseLandmark} recenter={recenter} />
         </Suspense>
       </MapBoundary>
       <header className="map-header">
         <button className="brand" onClick={returnToPark} aria-label="Parc Oberthür — Revenir au parc">
           <span className="brand-mark"><LeafIcon /></span>
-          <span><strong>{planOnly ? "Parc du Thabor" : "Parc Oberthür"}</strong><small>{planOnly ? "Plan du parc" : "Les arbres du parc"}</small></span>
+          <span><strong>{planOnly ? "Parc du Thabor" : "Parc Oberthür"}</strong></span>
         </button>
       </header>
-      <div className="map-actions"><button onClick={returnToPark}>⌖ Recentrer</button></div>
-      <div className="park-switcher" aria-label="Choisir un parc">
-        <button className={activePark === "oberthur" ? "is-active" : ""} onClick={() => changePark("oberthur")} aria-pressed={activePark === "oberthur"}>Oberthür</button>
-        <button className={activePark === "thabor" ? "is-active" : ""} onClick={() => changePark("thabor")} aria-pressed={activePark === "thabor"}>Thabor</button>
+      <div className="map-actions">
+        <button type="button" className={`dimension-switch ${mapViewMode === "3d" ? "is-3d" : ""}`} role="switch" aria-checked={mapViewMode === "3d"} aria-label={`Passer en vue ${mapViewMode === "3d" ? "2D" : "3D"}`} onClick={() => setMapViewMode((mode) => mode === "3d" ? "2d" : "3d")}>
+          <span className="dimension-track" aria-hidden="true"><i>{mapViewMode.toUpperCase()}</i></span>
+        </button>
       </div>
-      <div className="map-legend" aria-label="Légende de la carte">
-        {planOnly ? <><span><i className="legend-line" /> Allées</span><span><i className="legend-water" /> Eau</span></> : <>
-          <span><i className="legend-dot" style={{ backgroundColor: TREE_COLORS.normal }} /> Arbre</span>
-          <span><i className="legend-dot" style={{ backgroundColor: TREE_COLORS.selected }} /> {hasFilters ? "Filtre / sélection" : "Sélection"}</span>
-        </>}
+      <div className="park-switcher" role="group" aria-label="Choisir un parc">
+        <button type="button" className={`park-choice ${activePark === "oberthur" ? "is-active" : ""}`} onClick={() => changePark("oberthur")} aria-pressed={activePark === "oberthur"}>
+          <i className="park-choice-symbol oberthur" aria-hidden="true" /><span>Oberthür</span>
+        </button>
+        <button type="button" className={`park-choice ${activePark === "thabor" ? "is-active" : ""}`} onClick={() => changePark("thabor")} aria-pressed={activePark === "thabor"}>
+          <i className="park-choice-symbol thabor" aria-hidden="true" /><span>Thabor</span>
+        </button>
       </div>
       {!planOnly && selectedTree && <TreeDetail tree={selectedTree} onClose={closeDetail} />}
       {!planOnly && selectedLandmark && <LandmarkDetail landmark={selectedLandmark} onClose={closeLandmark} />}

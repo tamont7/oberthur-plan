@@ -45,6 +45,7 @@ type MapViewProps = {
   selectedTree: Tree | null;
   focusTreeId: string | null;
   focusRequest: number;
+  viewMode: "2d" | "3d";
   hoveredTreeId: string | null;
   onSelectTree: (tree: Tree) => void;
   onSelectLandmark: (landmark: ParkLandmark) => void;
@@ -116,6 +117,7 @@ function positions(
 function setParkView(
   viewer: Viewer,
   bounds: readonly number[],
+  viewMode: "2d" | "3d" = "3d",
 ) {
   const [west, south, east, north] =
     bounds;
@@ -138,7 +140,7 @@ function setParkView(
     centre,
     new HeadingPitchRange(
       CesiumMath.toRadians(6),
-      CesiumMath.toRadians(-70),
+      CesiumMath.toRadians(viewMode === "2d" ? -87 : -70),
       range,
     ),
   );
@@ -627,6 +629,7 @@ export default function MapView(
     selectedTree,
     focusTreeId,
     focusRequest,
+    viewMode,
     hoveredTreeId,
     onSelectTree,
     onSelectLandmark,
@@ -2043,13 +2046,17 @@ export default function MapView(
       return;
     }
 
-    setParkView(
-      viewer,
-      plan.bbox,
-    );
+    setParkView(viewer, plan.bbox, viewMode);
 
     viewer.scene.requestRender();
-  }, [plan]);
+  }, [plan, viewMode]);
+
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    if (!viewer) return;
+    setParkView(viewer, plan?.bbox ?? PARK_PLAN_BOUNDS, viewMode);
+    viewer.scene.requestRender();
+  }, [viewMode, plan, revision]);
 
   /*
    * Bouton "Recentrer".
@@ -2071,12 +2078,14 @@ export default function MapView(
       viewer,
       plan?.bbox ??
       PARK_PLAN_BOUNDS,
+      viewMode,
     );
 
     viewer.scene.requestRender();
   }, [
     recenter,
     plan,
+    viewMode,
   ]);
 
   return (
