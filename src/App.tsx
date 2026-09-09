@@ -705,7 +705,13 @@ export default function App() {
     return () => window.removeEventListener("keydown", closeOnEscape);
   }, [selectedId, selectedLandmark, mobilePanelOpen, isMobile]);
 
-  const chooseTree = (tree: Tree) => { setFocusTreeId(null); setSelectedId(tree.id); setSelectedLandmark(null); setMobilePanelOpen(false); };
+  const chooseTree = (tree: Tree) => {
+    setFocusTreeId(isMobile ? tree.id : null);
+    if (isMobile) setFocusRequest((request) => request + 1);
+    setSelectedId(tree.id);
+    setSelectedLandmark(null);
+    setMobilePanelOpen(false);
+  };
   const focusTree = (tree: Tree) => { setFocusTreeId(tree.id); setFocusRequest((request) => request + 1); };
   const chooseLandmark = (landmark: ParkLandmark) => { setSelectedLandmark(landmark); setSelectedId(null); setMobilePanelOpen(false); };
   const updateSearch = (value: string) => {
@@ -815,7 +821,7 @@ export default function App() {
     <section className="map-area" aria-label="Carte et fiche arbre">
       <MapBoundary key={mapAttempt} onRetry={() => setMapAttempt((value) => value + 1)}>
         <Suspense fallback={<div className="map-notice" role="status">Chargement de la carte…</div>}>
-          <MapView trees={planOnly ? EMPTY_TREES : trees} plan={plan} visibleTrees={planOnly ? EMPTY_TREES : visibleTrees} selectedTree={planOnly ? null : selectedTree} focusTreeId={planOnly ? null : focusTreeId} focusRequest={focusRequest} viewMode={mapViewMode} hoveredTreeId={planOnly ? null : hoveredTreeId} onSelectTree={chooseTree} onSelectLandmark={chooseLandmark} recenter={recenter} />
+          <MapView trees={planOnly ? EMPTY_TREES : trees} plan={plan} visibleTrees={planOnly ? EMPTY_TREES : visibleTrees} selectedTree={planOnly ? null : selectedTree} focusTreeId={planOnly ? null : focusTreeId} focusRequest={focusRequest} viewMode={mapViewMode} onChangeViewMode={() => setMapViewMode((mode) => mode === "3d" ? "2d" : "3d")} hoveredTreeId={planOnly ? null : hoveredTreeId} onSelectTree={chooseTree} onSelectLandmark={chooseLandmark} recenter={recenter} />
         </Suspense>
       </MapBoundary>
       <header className="map-header">
@@ -824,11 +830,6 @@ export default function App() {
           <span><strong>{planOnly ? "Parc du Thabor" : "Parc Oberthür"}</strong></span>
         </button>
       </header>
-      <div className="map-actions">
-        <button type="button" className={`dimension-switch ${mapViewMode === "3d" ? "is-3d" : ""}`} role="switch" aria-checked={mapViewMode === "3d"} aria-label={`Passer en vue ${mapViewMode === "3d" ? "2D" : "3D"}`} onClick={() => setMapViewMode((mode) => mode === "3d" ? "2d" : "3d")}>
-          <span className="dimension-track" aria-hidden="true"><i>{mapViewMode.toUpperCase()}</i></span>
-        </button>
-      </div>
       <div className="park-switcher" role="group" aria-label="Choisir un parc">
         <button type="button" className={`park-choice ${activePark === "oberthur" ? "is-active" : ""}`} onClick={() => changePark("oberthur")} aria-pressed={activePark === "oberthur"}>
           <i className="park-choice-symbol oberthur" aria-hidden="true" /><span>Oberthür</span>
@@ -850,7 +851,7 @@ export default function App() {
       <p className="thabor-source"><a href="https://data.rennesmetropole.fr/explore/dataset/espaces_verts/" target="_blank" rel="noreferrer">Rennes Métropole</a> · <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> · <a href={THABOR_PLAN_URL} download>GeoJSON</a> · ODbL 1.0</p>
     </aside> : isMobile ? <dialog id="mobile-explorer" className="explorer-panel" ref={dialogRef} aria-label="Liste des arbres" style={{ transform: `translateY(${explorerDragOffset}px)` }}
       onCancel={(event) => { event.preventDefault(); setMobilePanelOpen(false); }}
-      onClose={() => setMobilePanelOpen(false)}><div className="mobile-panel-handle" aria-hidden="true"
+      onClose={() => setMobilePanelOpen(false)}><button type="button" className="mobile-panel-handle" aria-label="Fermer la liste des arbres" onClick={() => setMobilePanelOpen(false)}
         onPointerDown={beginExplorerSwipe} onPointerMove={moveExplorerSwipe} onPointerUp={endExplorerSwipe} onPointerCancel={endExplorerSwipe} />{explorer}</dialog>
       : <aside className="explorer-panel" aria-label="Liste des arbres">{explorer}</aside>}
     {!planOnly && <dialog className="info-dialog" ref={infoDialogRef} aria-labelledby="info-title" onClose={() => setInfoOpen(false)}>

@@ -46,6 +46,7 @@ type MapViewProps = {
   focusTreeId: string | null;
   focusRequest: number;
   viewMode: "2d" | "3d";
+  onChangeViewMode: () => void;
   hoveredTreeId: string | null;
   onSelectTree: (tree: Tree) => void;
   onSelectLandmark: (landmark: ParkLandmark) => void;
@@ -630,6 +631,7 @@ export default function MapView(
     focusTreeId,
     focusRequest,
     viewMode,
+    onChangeViewMode,
     hoveredTreeId,
     onSelectTree,
     onSelectLandmark,
@@ -708,6 +710,8 @@ export default function MapView(
       null,
     );
 
+  const [cameraHeading, setCameraHeading] = useState(0);
+
   useEffect(() => {
     treesRef.current =
       trees;
@@ -730,6 +734,14 @@ export default function MapView(
     onSelectTree,
     onSelectLandmark,
   ]);
+
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    if (!viewer || phase !== "ready") return;
+    const updateHeading = () => setCameraHeading(viewer.camera.heading);
+    updateHeading();
+    return viewer.camera.changed.addEventListener(updateHeading);
+  }, [phase, revision]);
 
   /* Centre le cadrage uniquement via le bouton ⌖ de la liste. */
   useEffect(() => {
@@ -2088,6 +2100,22 @@ export default function MapView(
     viewMode,
   ]);
 
+  const changeZoom = (direction: "in" | "out") => {
+    const viewer = viewerRef.current;
+    if (!viewer) return;
+    const distance = Math.max(12, viewer.camera.positionCartographic.height * 0.2);
+    if (direction === "in") viewer.camera.zoomIn(distance);
+    else viewer.camera.zoomOut(distance);
+    viewer.scene.requestRender();
+  };
+
+  const orientNorth = () => {
+    const viewer = viewerRef.current;
+    if (!viewer) return;
+    viewer.camera.setView({ orientation: { heading: 0, pitch: viewer.camera.pitch, roll: 0 } });
+    viewer.scene.requestRender();
+  };
+
   return (
     <>
       <div
@@ -2110,6 +2138,19 @@ export default function MapView(
         ref={creditsRef}
         className="map-credits"
       />
+
+      <div className={`map-navigation ${selectedTree ? "is-hidden-on-mobile" : ""}`} aria-label="Navigation de la carte">
+        <button type="button" className="map-compass" onClick={orientNorth} aria-label="Orienter la carte vers le nord">
+          <span className="compass-dial" aria-hidden="true" style={{ transform: `rotate(${-cameraHeading}rad)` }}>
+            <svg viewBox="0 0 24 24"><path d="m12 2 5 14-5-3-5 3L12 2Z" /><path d="M12 9v13" /></svg><span>N</span>
+          </span>
+        </button>
+        <button type="button" className="map-dimension-button" onClick={onChangeViewMode} aria-label={`Passer en vue ${viewMode === "3d" ? "2D" : "3D"}`}>{viewMode.toUpperCase()}</button>
+        <div className="map-zoom-controls">
+          <button type="button" className="map-control-button" onClick={() => changeZoom("in")} aria-label="Zoomer">+</button>
+          <button type="button" className="map-control-button" onClick={() => changeZoom("out")} aria-label="Dézoomer">−</button>
+        </div>
+      </div>
 
       {tooltip && (
         <div
