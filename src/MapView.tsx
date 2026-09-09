@@ -47,6 +47,7 @@ type MapViewProps = {
   focusRequest: number;
   viewMode: "2d" | "3d";
   onChangeViewMode: () => void;
+  isMobile: boolean;
   hoveredTreeId: string | null;
   onSelectTree: (tree: Tree) => void;
   onSelectLandmark: (landmark: ParkLandmark) => void;
@@ -632,6 +633,7 @@ export default function MapView(
     focusRequest,
     viewMode,
     onChangeViewMode,
+    isMobile,
     hoveredTreeId,
     onSelectTree,
     onSelectLandmark,
@@ -684,6 +686,8 @@ export default function MapView(
   const onSelectRef =
     useRef(onSelectTree);
 
+  const isMobileRef = useRef(isMobile);
+
   const onSelectLandmarkRef =
     useRef(onSelectLandmark);
 
@@ -725,6 +729,8 @@ export default function MapView(
     onSelectRef.current =
       onSelectTree;
 
+    isMobileRef.current = isMobile;
+
     onSelectLandmarkRef.current =
       onSelectLandmark;
   }, [
@@ -733,6 +739,7 @@ export default function MapView(
     plan,
     onSelectTree,
     onSelectLandmark,
+    isMobile,
   ]);
 
   useEffect(() => {
@@ -854,6 +861,12 @@ export default function MapView(
       [];
 
     let stopped = false;
+
+    let dragStart:
+      | { x: number; y: number }
+      | null = null;
+
+    let draggedAt = 0;
 
     try {
       viewer =
@@ -982,10 +995,19 @@ export default function MapView(
         );
 
       interactions.setInputAction(
+        (event: ScreenSpaceEventHandler.PositionedEvent) => {
+          dragStart = event.position;
+        },
+        ScreenSpaceEventType.LEFT_DOWN,
+      );
+
+      interactions.setInputAction(
         (
           event:
             ScreenSpaceEventHandler.PositionedEvent,
         ) => {
+          if (Date.now() - draggedAt < 400) return;
+
           const picked =
             viewer?.scene.pick(
               event.position,
@@ -1037,6 +1059,22 @@ export default function MapView(
           event:
             ScreenSpaceEventHandler.MotionEvent,
         ) => {
+          if (
+            dragStart &&
+            Math.hypot(
+              event.endPosition.x - dragStart.x,
+              event.endPosition.y - dragStart.y,
+            ) > 8
+          ) {
+            draggedAt = Date.now();
+          }
+
+          if (isMobileRef.current) {
+            setMapHoveredTreeId(null);
+            setTooltip(null);
+            return;
+          }
+
           const picked =
             viewer?.scene.pick(
               event.endPosition,
