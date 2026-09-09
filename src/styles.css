@@ -240,7 +240,7 @@ button:not(.tree-list-item):not(.focus-tree-button):not(.park-choice):not(.mobil
   .map-tooltip { display: none; }
   .map-header { right: 150px; }
   .map-navigation { right: 16px; bottom: calc(38px + env(safe-area-inset-bottom)); }
-  .map-navigation.is-hidden-on-mobile { opacity: 0; pointer-events: none; }
+  .map-navigation.is-tree-open { bottom: calc(344px + env(safe-area-inset-bottom)); }
   .park-switcher { top: 16px; right: 16px; }
   .park-choice { min-height: 36px; padding: 4px 7px; font-size: 10px; }
   .thabor-panel { display: none; }

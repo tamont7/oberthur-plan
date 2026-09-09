@@ -757,12 +757,13 @@ export default function MapView(
       proportions.trunkHeight + proportions.crownHeight / 2,
     );
 
+    viewer.camera.cancelFlight();
     viewer.camera.flyToBoundingSphere(new BoundingSphere(centre, radius), {
-      duration: 0.55,
+      duration: 0.75,
       offset: new HeadingPitchRange(
         CesiumMath.toRadians(6),
         CesiumMath.toRadians(-66),
-        Math.max(55, radius * 4.5),
+        Math.max(28, radius * 2.8),
       ),
     });
   }, [trees, focusTreeId, focusRequest, revision]);
@@ -2199,7 +2200,7 @@ export default function MapView(
         className="map-credits"
       />
 
-      <div className={`map-navigation ${selectedTree ? "is-hidden-on-mobile" : ""}`} aria-label="Navigation de la carte">
+      <div className={`map-navigation ${selectedTree ? "is-tree-open" : ""}`} aria-label="Navigation de la carte">
         <button type="button" className="map-compass" onClick={orientNorth} aria-label="Orienter la carte vers le nord">
           <span className="compass-dial" aria-hidden="true" style={{ transform: `rotate(${-cameraHeading}rad)` }}>
             <svg viewBox="0 0 24 24"><path d="m12 2 5 14-5-3-5 3L12 2Z" /><path d="M12 9v13" /></svg><span>N</span>

@@ -115,10 +115,12 @@ class MapBoundary extends Component<{ children: ReactNode; onRetry: () => void }
 
 function TreeDetail({
   tree,
+  count,
   onClose,
   isMobile,
 }: {
   tree: Tree;
+  count: number;
   onClose: () => void;
   isMobile: boolean;
 }) {
@@ -257,7 +259,7 @@ function TreeDetail({
           ref={headingRef}
           tabIndex={-1}
         >
-          {tree.name}
+          {tree.name} ({count})
         </h2>
 
         <button
@@ -726,7 +728,11 @@ export default function App() {
     setSelectedLandmark(null);
     setMobilePanelOpen(false);
   };
-  const focusTree = (tree: Tree) => { setFocusTreeId(tree.id); setFocusRequest((request) => request + 1); };
+  const focusTree = (tree: Tree) => {
+    setFocusTreeId(tree.id);
+    setFocusRequest((request) => request + 1);
+    setMobilePanelOpen(false);
+  };
   const chooseLandmark = (landmark: ParkLandmark) => { setSelectedLandmark(landmark); setSelectedId(null); setMobilePanelOpen(false); };
   const updateSearch = (value: string) => {
     setQuery(value);
@@ -847,7 +853,7 @@ export default function App() {
           <i className="park-choice-symbol thabor" aria-hidden="true" /><span>Thabor</span>
         </button>
       </div>
-      {!planOnly && selectedTree && <TreeDetail tree={selectedTree} onClose={closeDetail} isMobile={isMobile} />}
+      {!planOnly && selectedTree && <TreeDetail tree={selectedTree} count={speciesStats.get(selectedTree.species)?.count ?? 1} onClose={closeDetail} isMobile={isMobile} />}
       {!planOnly && selectedLandmark && <LandmarkDetail landmark={selectedLandmark} onClose={closeLandmark} />}
       {!planOnly && <button ref={listTriggerRef} className={`mobile-list-trigger ${selectedTree ? "is-hidden" : ""}`} onClick={() => setMobilePanelOpen(true)}
         aria-haspopup="dialog" aria-expanded={mobilePanelOpen} aria-controls="mobile-explorer">
