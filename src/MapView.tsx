@@ -52,11 +52,13 @@ export default function MapView({ trees, visibleTrees, selectedTree, hoveredTree
         fullscreenButton: false, geocoder: false, homeButton: false, infoBox: false,
         navigationHelpButton: false, sceneModePicker: false, selectionIndicator: false, timeline: false,
         creditContainer: creditsRef.current, showRenderLoopErrors: false,
+        // Rendu net sur les écrans Retina, sans dépasser 2× pour préserver la fluidité.
+        useBrowserRecommendedResolution: false,
         requestRenderMode: true, maximumRenderTimeChange: Number.POSITIVE_INFINITY,
         shouldAnimate: false,
       });
       viewerRef.current = viewer;
-      viewer.resolutionScale = Math.min(1, 1.5 / (window.devicePixelRatio || 1));
+      viewer.resolutionScale = Math.min(1, 2 / (window.devicePixelRatio || 1));
       viewer.scene.screenSpaceCameraController.minimumZoomDistance = 30;
       viewer.camera.setView({ destination: PARK_VIEW });
       let firstFrame = true;
