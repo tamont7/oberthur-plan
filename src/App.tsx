@@ -781,6 +781,10 @@ export default function App() {
     setExplorerDragOffset(0);
   };
   const hasFilters = Boolean(query || speciesSort !== "vernacular");
+  const openInfo = () => {
+    setMobilePanelOpen(false);
+    setInfoOpen(true);
+  };
 
   const explorer = <>
     <div className="search-combobox">
@@ -828,7 +832,7 @@ export default function App() {
       )) : <div className="empty-state"><LeafIcon /><p>Aucun arbre ne correspond à ces critères.</p><button className="text-button" onClick={clearFilters}>Effacer les filtres</button></div>}
     </div>
     <footer className="panel-footer">
-      <button className="info-button" onClick={() => setInfoOpen(true)} aria-haspopup="dialog" aria-label="Informations sur les données"><InfoIcon /></button>
+      <button className="info-button" onClick={openInfo} aria-haspopup="dialog" aria-label="Informations sur les données"><InfoIcon /></button>
     </footer>
   </>;
 
