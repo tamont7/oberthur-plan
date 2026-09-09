@@ -1,5 +1,16 @@
 # Changements
 
+## V1.4 — 9 septembre 2026
+
+### Exploration et carte
+
+- La liste affiche désormais hauteur, circonférence et diamètre du houppier ; elle peut être triée par hauteur ou houppier.
+- La sélection d’un arbre propose un cadrage dédié (`⌖`) ; sur mobile, toucher une ligne ferme la liste et cadre l’arbre.
+- Le survol met en valeur l’arbre et son taxon en ambre. Lors d’un cadrage, le houppier ciblé passe brièvement au premier plan et clignote trois fois.
+- Les contrôles de carte incluent une boussole, le zoom manuel et un bouton de vue 2D/3D. La vue 2D est une vue de dessus libre, sans figer la navigation.
+- Le fond SIG de Rennes Métropole, la légende et le filtre « Remarquables » sont masqués dans l’interface.
+- L’ergonomie mobile est resserrée : poignée de fermeture élargie, fiche arbre compacte et bouton d’exploration masqué pendant l’affichage de la fiche.
+
 ## V1.3 — 9 septembre 2026
 
 ### Plan vectoriel du parc

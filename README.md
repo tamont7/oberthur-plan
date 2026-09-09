@@ -1,4 +1,4 @@
-# Parc Oberthür — V1.3
+# Parc Oberthür — V1.4
 
 Carte des arbres du parc à Rennes : React, TypeScript, Vite et CesiumJS, avec un extrait réel de l’inventaire de Rennes Métropole. Le brief d’origine est dans [softplan.md](softplan.md) et les évolutions sont consignées dans [CHANGELOG.md](CHANGELOG.md).
 
