@@ -158,6 +158,17 @@ button:not(.tree-list-item):not(.brand):not(.icon-button):not(.text-button):not(
 .app-shell { height: 100dvh; }
 .brand { border: 0; padding: 0; text-align: left; background: rgb(251 252 249 / .94); border-radius: 24px; padding-right: 12px; }
 .map-actions { position: absolute; top: 88px; right: 20px; z-index: 2; }
+.park-switcher { position: absolute; z-index: 3; top: 24px; right: 26px; display: inline-flex; overflow: hidden; border: 1px solid rgba(23, 55, 44, .16); border-radius: 8px; background: rgb(255 255 255 / .94); box-shadow: 0 3px 13px rgba(12, 42, 29, .08); }
+.park-switcher button { min-height: 36px; border: 0; padding: 0 11px; color: #537064; background: transparent; font-size: 12px; font-weight: 600; }
+.park-switcher button + button { border-left: 1px solid #dce4da; }
+.park-switcher button.is-active { color: #fff; background: #1e503c; }
+.legend-line, .legend-water { width: 15px; height: 4px; flex: 0 0 auto; border-radius: 4px; background: #f9f5e9; box-shadow: 0 0 0 1px #c8bea9; }
+.legend-water { height: 9px; background: #9fc5d0; box-shadow: 0 0 0 1px #6f9eaa; }
+.thabor-panel { position: relative; z-index: 4; display: flex; flex: 0 0 360px; flex-direction: column; order: 1; min-height: 0; padding: 34px 28px; border-right: 1px solid #dce4da; color: #476156; background: #fbfcf9; box-shadow: 4px 0 24px rgba(20, 50, 38, .06); }
+.thabor-panel h1 { margin-bottom: 14px; }
+.thabor-panel > p:not(.eyebrow) { font-size: 14px; line-height: 1.55; }
+.thabor-source { margin-top: 12px; padding-top: 15px; border-top: 1px solid #e0e9e1; color: #668074; font-size: 12px !important; }
+.thabor-source a { color: #22563f; text-underline-offset: 2px; }
 .map-notice { position: absolute; z-index: 4; top: 145px; left: 20px; right: 20px; max-width: 400px; padding: 14px; background: #fff8e8; border: 1px solid #dfc68d; border-radius: 10px; font-size: 14px; }
 .map-notice p { margin-bottom: 10px; }
 .map-loading { position: absolute; z-index: 2; top: 143px; left: 20px; padding: 8px 12px; border-radius: 8px; background: #fff; font-size: 12px; }
@@ -186,7 +197,11 @@ button:not(.tree-list-item):not(.brand):not(.icon-button):not(.text-button):not(
 .tree-photo { display: block; width: 100%; max-height: 180px; object-fit: cover; border-radius: 8px; margin-bottom: 12px; }
 @media (max-width: 760px) {
   .map-header { gap: 8px; }
+  .map-header { right: 150px; }
   .map-actions { top: 74px; right: 16px; }
+  .park-switcher { top: 16px; right: 16px; }
+  .park-switcher button { min-height: 34px; padding: 0 9px; font-size: 11px; }
+  .thabor-panel { display: none; }
   .map-credits { padding-bottom: max(3px, env(safe-area-inset-bottom)); }
   .mobile-list-trigger { bottom: calc(38px + env(safe-area-inset-bottom)); min-height: 44px; }
   .map-legend { bottom: calc(92px + env(safe-area-inset-bottom)); }

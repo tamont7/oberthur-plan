@@ -1,14 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
 
-// Les tests n’utilisent pas les serveurs communautaires OSM. Le moteur WebGL reste réel.
-const tile = `<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
-  <rect width="256" height="256" fill="#d7e4d5"/>
-  <path d="M0 128h256M128 0v256" stroke="#b6ccb6" stroke-width="2"/>
-</svg>`;
-test.beforeEach(async ({ page }) => {
-  await page.route("https://tile.openstreetmap.org/**", (route) => route.fulfill({ contentType: "image/svg+xml", body: tile }));
-});
-
 async function openExplorer(page: Page, mobile: boolean) {
   if (mobile) await page.getByRole("button", { name: /Explorer les|Ouvrir la liste/ }).click();
 }
@@ -18,7 +9,7 @@ test("carte, crédits, filtres, fiche et recentrage", async ({ page, isMobile },
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto("/");
   await expect(page.locator(".cesium-map")).toHaveAttribute("data-map-state", "ready");
-  await expect(page.locator(".map-credits").getByRole("link", { name: "OpenStreetMap", exact: true })).toBeVisible();
+  await expect(page.locator(".cesium-map")).toHaveAttribute("data-plan-features", "40");
   await openExplorer(page, isMobile);
   await expect(page.locator(".tree-list-item").first()).toBeVisible();
   if (!isMobile) {
@@ -26,6 +17,7 @@ test("carte, crédits, filtres, fiche et recentrage", async ({ page, isMobile },
     const infoDialog = page.locator(".info-dialog");
     await expect(infoDialog).toBeVisible();
     await expect(infoDialog).toContainText("ODbL 1.0");
+    await expect(infoDialog).toContainText("Axes, étang et kiosque");
     await infoDialog.getByRole("button", { name: "Fermer les informations" }).click();
     await expect(infoDialog).not.toBeVisible();
   }
@@ -67,7 +59,7 @@ test("carte, crédits, filtres, fiche et recentrage", async ({ page, isMobile },
   await page.getByRole("button", { name: "Fermer la fiche" }).click();
   if (isMobile) await expect(page.getByRole("button", { name: /Explorer les/ })).toBeFocused();
   else await expect(page.locator(".tree-list-item").first()).toBeFocused();
-  await page.getByRole("button", { name: "⌖ Revenir au parc", exact: true }).click();
+  await page.getByRole("button", { name: "⌖ Recentrer", exact: true }).click();
   await expect(page.locator(".tree-detail")).not.toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   expect(errors).toEqual([]);
@@ -112,14 +104,18 @@ test("WebGL indisponible : les fiches restent utilisables", async ({ page, isMob
   await expect(page.locator(".tree-detail")).toBeVisible();
 });
 
-test("échec du fond de carte puis reprise", async ({ page }) => {
-  await page.unroute("https://tile.openstreetmap.org/**");
-  await page.route("https://tile.openstreetmap.org/**", (route) => route.abort());
+test("le plan vectoriel ne dépend d’aucune tuile de fond", async ({ page }) => {
+  let osmTileRequest = false;
+  page.on("request", (request) => { if (request.url().startsWith("https://tile.openstreetmap.org/")) osmTileRequest = true; });
   await page.goto("/");
-  await expect(page.getByText("Le fond de carte n’a pas pu être chargé. Les arbres restent consultables.")).toBeVisible();
-  await page.unroute("https://tile.openstreetmap.org/**");
-  await page.route("https://tile.openstreetmap.org/**", (route) => route.fulfill({ contentType: "image/svg+xml", body: tile }));
-  await page.getByRole("button", { name: "Réessayer le fond de carte" }).click();
-  await expect(page.locator(".cesium-map")).toHaveAttribute("data-map-state", "ready");
-  await expect(page.getByText("Le fond de carte n’a pas pu être chargé. Les arbres restent consultables.")).not.toBeVisible();
+  await expect(page.locator(".cesium-map")).toHaveAttribute("data-plan-features", "40");
+  expect(osmTileRequest).toBe(false);
+});
+
+test("le Thabor est visible comme plan seul, sans inventaire d’arbres", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Thabor", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Parc du Thabor", exact: true })).toBeVisible();
+  await expect(page.locator(".cesium-map")).toHaveAttribute("data-plan-features", "279");
+  await expect(page.locator(".tree-list-item")).toHaveCount(0);
 });

@@ -1,4 +1,4 @@
-# Parc Oberthür — V1.2
+# Parc Oberthür — V1.3
 
 Carte des arbres du parc à Rennes : React, TypeScript, Vite et CesiumJS, avec un extrait réel de l’inventaire de Rennes Métropole. Le brief d’origine est dans [softplan.md](softplan.md) et les évolutions sont consignées dans [CHANGELOG.md](CHANGELOG.md).
 
@@ -18,7 +18,7 @@ npm run check           # validation des données, tests et compilation
 npm run preview         # servir la compilation locale
 ```
 
-Le fond OpenStreetMap nécessite Internet. La liste et les fiches restent utilisables lorsque WebGL ou le fond de carte échoue. Cela ne constitue pas un mode hors ligne complet.
+La carte utilise un plan vectoriel embarqué : aucune tuile de fond n’est demandée pendant la visite. La liste et les fiches restent utilisables lorsque WebGL est indisponible.
 
 ## Données de Rennes Métropole : comment ?
 
@@ -59,11 +59,38 @@ Les mesures ≤ 0 sont considérées non exploitables, pas des dimensions physiq
 
 Les types internes React utilisent camelCase ; le contrat GeoJSON est validé par [src/treeSchema.ts](src/treeSchema.ts). L’adaptation et la recherche sont dans [src/data.ts](src/data.ts). Aucun modèle 3D n’est requis.
 
+## Plan vectoriel du parc
+
+Le fond est un plan local, dessiné par Cesium sous les points des arbres : emprise végétale, contour, 36 allées continues et étang. Il est net sur téléphone et ne dépend pas de tuiles distantes.
+
+- L’emprise officielle « Parc Hamelin Oberthür » vient de la couche [Espaces verts de Rennes Métropole](https://data.rennesmetropole.fr/explore/dataset/espaces_verts/), sous ODbL 1.0.
+- L’emprise de l’Hôtel Oberthür est téléchargée depuis les géoservices [RTGE de Rennes Métropole](https://public.sig.rennesmetropole.fr/header/geoservices), sous ODbL 1.0.
+- Les axes, le plan d’eau et le kiosque viennent d’[OpenStreetMap](https://www.openstreetmap.org/copyright), sous ODbL 1.0.
+- L’Hôtel et le kiosque sont des volumes 3D de repérage : leur emprise est géographique, mais leurs hauteurs (15 m et 4,5 m) sont illustratives car les jeux consultés ne publient pas ces altitudes. Leur fiche affiche une photo [Wikimedia Commons](https://commons.wikimedia.org/) au clic, attribuée CC BY-SA 3.0.
+- L’extrait validé est [public/data/parc-oberthur.geojson](public/data/parc-oberthur.geojson). Il est affiché et téléchargeable depuis le bouton ⓘ.
+
+```bash
+npm run data:plan
+npm run check
+```
+
+La commande [scripts/import-park-plan.ts](scripts/import-park-plan.ts) télécharge les trois couches, contrôle les deux coordonnées de repère fournies, une emprise officielle, un étang et le réseau continu d’allées, puis remplace le GeoJSON seulement en cas de succès. Les données de plan étant modifiées, l’extrait résultant reste sous ODbL ; consulter [DATA-LICENSE.md](DATA-LICENSE.md).
+
+## Plan du Thabor (préparé)
+
+Le plan autonome [public/data/parc-thabor.geojson](public/data/parc-thabor.geojson) est préparé pour une future vue du Thabor. Il contient seulement l’emprise officielle, les allées et les plans d’eau : aucun bâtiment ni arbre ne lui est encore associé.
+
+```bash
+npm run data:thabor
+```
+
+La commande [scripts/import-thabor-plan.ts](scripts/import-thabor-plan.ts) télécharge l’emprise « Parc du Thabor » depuis [Espaces verts de Rennes Métropole](https://data.rennesmetropole.fr/explore/dataset/espaces_verts/) et les allées/plans d’eau depuis [OpenStreetMap](https://www.openstreetmap.org/copyright), valide le résultat puis l’écrit de manière atomique.
+
 ## Licence et attribution
 
-Les données proviennent de Rennes Métropole, sous **ODbL 1.0**. L’extrait normalisé est diffusé sous cette même licence, indépendamment du code de l’application. Voir [DATA-LICENSE.md](DATA-LICENSE.md). Le GeoJSON est téléchargeable depuis l’interface.
+Les données proviennent de Rennes Métropole et d’OpenStreetMap, sous **ODbL 1.0**. Les extraits normalisés sont diffusés sous cette même licence, indépendamment du code de l’application. Voir [DATA-LICENSE.md](DATA-LICENSE.md). Les GeoJSON sont téléchargeables depuis l’interface.
 
-Les crédits Cesium et OpenStreetMap restent visibles. Les tests remplacent les tuiles réseau par une image locale ; ils ne parcourent pas les serveurs OSM. Pas de préchargement de zone ni de téléchargement hors ligne des tuiles communautaires.
+Les attributions Rennes Métropole et OpenStreetMap sont accessibles dans le panneau ⓘ. Les GeoJSON sont extraits à la demande de développement, puis servis localement : l’application ne précharge ni ne contacte de service cartographique pendant une visite.
 
 ## Vérifications navigateur
 
@@ -74,14 +101,14 @@ npm run build
 E2E_PREVIEW=1 npm run test:e2e
 ```
 
-Les tests couvrent le rendu WebGL, la sélection liste/carte, recherche et filtres, recentrage, clavier et panneau mobile, données indisponibles, fond de carte défaillant et absence de WebGL. Chromium simule le mobile : une vérification Safari/iOS et sur un téléphone réel reste utile.
+Les tests couvrent le rendu WebGL, le plan vectoriel local, la sélection liste/carte, recherche et filtres, recentrage, clavier et panneau mobile, données indisponibles et absence de WebGL. Chromium simule le mobile : une vérification Safari/iOS et sur un téléphone réel reste utile.
 
 ## Choix de stabilisation
 
 - Vite 6.4.3 corrige les avis npm tout en restant compatible avec Node 20.11.
 - Cesium 1.120 et ZIP 2.7.34 sont épinglés ensemble pour éviter l’incompatibilité historique `zip-no-worker.js`. Réévaluer ces deux versions ensemble lors d’une future mise à niveau du runtime.
 - Cesium est chargé dans un module différé ; pas de script global bloquant avant React.
-- Le rendu à la demande évite les images inutiles à l’arrêt ; les points sont conservés entre les sélections et les filtres.
+- Le rendu à la demande évite les images inutiles à l’arrêt ; les points sont conservés entre les sélections et les filtres. Le fond est vectoriel et embarqué, plutôt qu’un flux de tuiles raster.
 - Le panneau mobile utilise un dialogue natif, avec fermeture Échap, confinement et restitution du focus. Les couleurs sont partagées entre liste, carte et légende.
 
-Suite logique : valider l’inventaire sur place, obtenir le contour exact et les chemins, puis choisir orthophoto et terrain avant d’ajouter des modèles 3D.
+Suite logique : vérifier le tracé des allées sur place, enrichir le plan avec bancs, entrées et massifs, puis éventuellement proposer une orthophoto comme couche de contrôle activable (pas comme fond par défaut).

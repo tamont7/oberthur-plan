@@ -2,12 +2,17 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { filterTrees, parseTreeData, treeColor, treeHighlight, TREE_COLORS } from "../src/data";
+import { isParkLandmark, parseParkPlan } from "../src/plan";
 import { treeCollectionSchema } from "../src/treeSchema";
 import { isInsideParkBounds } from "../src/park";
 import { importRennes, normalizeRecord } from "../scripts/import-rennes";
+import { parseThaborPlan } from "../scripts/import-thabor-plan";
 
 const snapshot = JSON.parse(readFileSync(new URL("../public/data/arbres-rennes.geojson", import.meta.url), "utf8"));
+const planSnapshot = JSON.parse(readFileSync(new URL("../public/data/parc-oberthur.geojson", import.meta.url), "utf8"));
+const thaborPlanSnapshot = JSON.parse(readFileSync(new URL("../public/data/parc-thabor.geojson", import.meta.url), "utf8"));
 const { trees, metadata } = parseTreeData(snapshot);
+const plan = parseParkPlan(planSnapshot);
 const first = snapshot.features[0];
 const record = { ...first.properties.source_properties, geo_shape: { geometry: first.geometry } };
 
@@ -29,6 +34,38 @@ test("un arbre dans l’emprise GPS est retenu même si sa localisation éditori
   assert.equal(cèdre.location, null);
   assert.equal(feature.properties.source_properties.gml_id, "arbre.135502");
   assert.equal(feature.properties.source_properties.code_insee, "35238");
+});
+
+test("le plan vectoriel embarque l’emprise officielle, les axes, l’étang et les repères", () => {
+  const boundaries = plan.features.filter((feature) => feature.properties.kind === "boundary");
+  const water = plan.features.filter((feature) => feature.properties.kind === "water");
+  const paths = plan.features.filter((feature) => feature.properties.kind === "path");
+  const landmarks = plan.features.filter(isParkLandmark);
+  const hotel = landmarks.find((feature) => feature.properties.kind === "building");
+  const kiosque = landmarks.find((feature) => feature.properties.kind === "landmark");
+  assert.equal(boundaries.length, 1);
+  assert.equal(boundaries[0].properties.source, "Rennes Métropole");
+  assert.equal(water.length, 1);
+  assert.equal(paths.length, 36);
+  assert.equal(hotel?.properties.label, "Hôtel Oberthür");
+  assert.equal(kiosque?.properties.label, "Kiosque");
+  assert.equal(hotel?.properties.photo.license, "CC BY-SA 3.0");
+  assert.equal(kiosque?.properties.photo.license, "CC BY-SA 3.0");
+  assert.equal(plan.metadata.rennes_metropole.license, "Licence ODbL 1.0");
+  assert(plan.metadata.buildings);
+  assert.equal(plan.metadata.buildings.license, "Licence ODbL 1.0");
+  assert.equal(plan.metadata.openstreetmap.license, "ODbL 1.0");
+});
+
+test("le plan du Thabor est autonome et ne contient aucun bâtiment", () => {
+  const thabor = parseThaborPlan(thaborPlanSnapshot);
+  const kinds = thabor.features.map((feature) => feature.properties.kind);
+  assert.equal(kinds.filter((kind) => kind === "boundary").length, 1);
+  assert(kinds.filter((kind) => kind === "path").length > 100);
+  assert(kinds.filter((kind) => kind === "water").length > 0);
+  assert(!thabor.features.some((feature) => "height_m" in feature.properties));
+  assert.equal(thabor.metadata.rennes_metropole.license, "Licence ODbL 1.0");
+  assert.equal(thabor.metadata.openstreetmap.license, "ODbL 1.0");
 });
 
 test("l’import conserve l’identité et les unités, sans inventer de statut ni de mesure", () => {

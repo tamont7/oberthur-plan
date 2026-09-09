@@ -1,9 +1,13 @@
 import { Component, lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { filterTrees, normalizeSearch, parseTreeData, treeColor, TREE_COLORS, type Tree, type TreeData } from "./data";
-import { SOURCE_URL } from "./park";
+import { PARK_PLAN_SOURCE_URL, SOURCE_URL } from "./park";
+import { parseParkPlan, type ParkLandmark, type ParkPlan } from "./plan";
 
 const DATA_URL = `${import.meta.env.BASE_URL}data/arbres-rennes.geojson`;
+const PLAN_URL = `${import.meta.env.BASE_URL}data/parc-oberthur.geojson`;
+const THABOR_PLAN_URL = `${import.meta.env.BASE_URL}data/parc-thabor.geojson`;
 const EMPTY_TREES: Tree[] = [];
+type ParkView = "oberthur" | "thabor";
 const WIKIPEDIA_SEARCH_URL = "https://fr.wikipedia.org/w/index.php?search=";
 const WIKIPEDIA_API_URL = "https://fr.wikipedia.org/w/api.php?action=query&list=search&srlimit=1&format=json&origin=*&srsearch=";
 type SpeciesSort = "vernacular" | "scientific" | "count";
@@ -120,15 +124,37 @@ function TreeDetail({ tree, onClose }: { tree: Tree; onClose: () => void }) {
       <div><dt>Mise à jour de la fiche source</dt><dd>{dateLabel(tree.updatedAt)}</dd></div>
     </dl>
     <p className="coordinates">GPS : {tree.latitude.toFixed(6)}, {tree.longitude.toFixed(6)}</p>
+</article>;
+}
+
+function LandmarkDetail({ landmark, onClose }: { landmark: ParkLandmark; onClose: () => void }) {
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    const timer = window.setTimeout(() => headingRef.current?.focus(), 0);
+    return () => window.clearTimeout(timer);
+  }, [landmark.id]);
+  const { photo } = landmark.properties;
+  return <article className="tree-detail landmark-detail" aria-labelledby="landmark-title">
+    <div className="detail-topline">
+      <span className="detail-kicker">Repère du parc · volume 3D</span>
+      <button className="icon-button" onClick={onClose} aria-label="Fermer la fiche"><CloseIcon /></button>
+    </div>
+    <h2 id="landmark-title" ref={headingRef} tabIndex={-1}>{landmark.properties.label}</h2>
+    <p className="landmark-description">Emprise géographique et volume de repérage sur la carte. La hauteur est illustrative : la source ne publie pas de hauteur de bâtiment.</p>
+    <img className="tree-photo" src={photo.url} alt={landmark.properties.label} loading="lazy" />
+    <p className="photo-credit">Photo : <a href={photo.page_url} target="_blank" rel="noreferrer">{photo.author} · {photo.license}</a></p>
+    <p className="coordinates">Source géométrique : {landmark.properties.source} · {landmark.properties.source_id}</p>
   </article>;
 }
 
 export default function App() {
   const [data, setData] = useState<TreeData | null>(null);
+  const [plan, setPlan] = useState<ParkPlan | null>(null);
   const [dataError, setDataError] = useState(false);
   const [dataAttempt, setDataAttempt] = useState(0);
   const [mapAttempt, setMapAttempt] = useState(0);
   const MapView = useMemo(() => lazy(() => import("./MapView")), [mapAttempt]);
+  const [activePark, setActivePark] = useState<ParkView>(() => new URLSearchParams(window.location.search).get("plan") === "thabor" ? "thabor" : "oberthur");
   const [query, setQuery] = useState("");
   const [selectedSpecies, setSelectedSpecies] = useState("");
   const [speciesSort, setSpeciesSort] = useState<SpeciesSort>("vernacular");
@@ -136,6 +162,7 @@ export default function App() {
   const [infoOpen, setInfoOpen] = useState(false);
   const [remarkableOnly, setRemarkableOnly] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedLandmark, setSelectedLandmark] = useState<ParkLandmark | null>(null);
   const [hoveredTreeId, setHoveredTreeId] = useState<string | null>(null);
   const [recenter, setRecenter] = useState(0);
   const [mobilePanelOpen, setMobilePanelOpen] = useState(false);
@@ -145,6 +172,7 @@ export default function App() {
   const listTriggerRef = useRef<HTMLButtonElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const planOnly = activePark === "thabor";
 
   useEffect(() => {
     const controller = new AbortController();
@@ -153,18 +181,38 @@ export default function App() {
       controller.abort();
       setDataError(true);
     }, 20_000);
-    fetch(DATA_URL, { signal: controller.signal })
+    setPlan(null);
+    const planUrl = activePark === "thabor" ? THABOR_PLAN_URL : PLAN_URL;
+    const parkPlan = fetch(planUrl, { signal: controller.signal })
+      .then((response) => {
+        if (!response.ok) throw new Error("Plan indisponible");
+        return response.json() as Promise<unknown>;
+      })
+      .then(parseParkPlan);
+    if (activePark === "thabor") {
+      setData(null);
+      parkPlan
+        .then((nextPlan) => { if (!controller.signal.aborted) setPlan(nextPlan); })
+        .catch(() => { if (!controller.signal.aborted) setDataError(true); })
+        .finally(() => window.clearTimeout(timeout));
+      return () => { window.clearTimeout(timeout); controller.abort(); };
+    }
+    const treeData = fetch(DATA_URL, { signal: controller.signal })
       .then((response) => {
         if (!response.ok) throw new Error("GeoJSON indisponible");
-        return response.json();
-      })
-      .then((value: unknown) => {
-        if (!controller.signal.aborted) setData(parseTreeData(value));
+        return response.json() as Promise<unknown>;
+      });
+    Promise.all([treeData, parkPlan])
+      .then(([trees, nextPlan]) => {
+        if (!controller.signal.aborted) {
+          setData(parseTreeData(trees));
+          setPlan(nextPlan);
+        }
       })
       .catch(() => { if (!controller.signal.aborted) setDataError(true); })
       .finally(() => window.clearTimeout(timeout));
     return () => { window.clearTimeout(timeout); controller.abort(); };
-  }, [dataAttempt]);
+  }, [dataAttempt, activePark]);
 
   useEffect(() => {
     const media = window.matchMedia("(max-width: 760px)");
@@ -250,14 +298,16 @@ export default function App() {
     if (isMobile) listTriggerRef.current?.focus();
     else listRef.current?.querySelector<HTMLButtonElement>(`[data-tree-id="${previousId}"]`)?.focus();
   };
+  const closeLandmark = () => setSelectedLandmark(null);
   useEffect(() => {
-    if (!selectedTree || mobilePanelOpen) return;
-    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") closeDetail(); };
+    if ((!selectedTree && !selectedLandmark) || mobilePanelOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") selectedLandmark ? closeLandmark() : closeDetail(); };
     window.addEventListener("keydown", closeOnEscape);
     return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [selectedId, mobilePanelOpen, isMobile]);
+  }, [selectedId, selectedLandmark, mobilePanelOpen, isMobile]);
 
-  const chooseTree = (tree: Tree) => { setSelectedId(tree.id); setMobilePanelOpen(false); };
+  const chooseTree = (tree: Tree) => { setSelectedId(tree.id); setSelectedLandmark(null); setMobilePanelOpen(false); };
+  const chooseLandmark = (landmark: ParkLandmark) => { setSelectedLandmark(landmark); setSelectedId(null); setMobilePanelOpen(false); };
   const updateSearch = (value: string) => {
     setQuery(value);
     setSelectedSpecies(speciesOptions.find((option) => speciesOptionLabel(option, speciesSort) === value)?.taxon ?? "");
@@ -282,7 +332,18 @@ export default function App() {
     if (option) setQuery(speciesOptionLabel(option, nextSort));
   };
   const clearFilters = () => { clearSearch(); setRemarkableOnly(false); };
-  const returnToPark = () => { setSelectedId(null); setRecenter((value) => value + 1); };
+  const returnToPark = () => { setSelectedId(null); setSelectedLandmark(null); setRecenter((value) => value + 1); };
+  const changePark = (nextPark: ParkView) => {
+    if (nextPark === activePark) return;
+    setActivePark(nextPark);
+    setSelectedId(null);
+    setSelectedLandmark(null);
+    setMobilePanelOpen(false);
+    const url = new URL(window.location.href);
+    if (nextPark === "thabor") url.searchParams.set("plan", "thabor");
+    else url.searchParams.delete("plan");
+    window.history.pushState({}, "", url);
+  };
   const hasFilters = Boolean(query || remarkableOnly);
 
   const explorer = <>
@@ -333,44 +394,56 @@ export default function App() {
     <section className="map-area" aria-label="Carte et fiche arbre">
       <MapBoundary key={mapAttempt} onRetry={() => setMapAttempt((value) => value + 1)}>
         <Suspense fallback={<div className="map-notice" role="status">Chargement de la carte…</div>}>
-          <MapView trees={trees} visibleTrees={visibleTrees} selectedTree={selectedTree} hoveredTreeId={hoveredTreeId} filtersActive={hasFilters} onSelectTree={chooseTree} recenter={recenter} />
+          <MapView trees={planOnly ? EMPTY_TREES : trees} plan={plan} visibleTrees={planOnly ? EMPTY_TREES : visibleTrees} selectedTree={planOnly ? null : selectedTree} hoveredTreeId={planOnly ? null : hoveredTreeId} filtersActive={!planOnly && hasFilters} onSelectTree={chooseTree} onSelectLandmark={chooseLandmark} recenter={recenter} />
         </Suspense>
       </MapBoundary>
       <header className="map-header">
         <button className="brand" onClick={returnToPark} aria-label="Parc Oberthür — Revenir au parc">
           <span className="brand-mark"><LeafIcon /></span>
-          <span><strong>Parc Oberthür</strong><small>Les arbres du parc</small></span>
+          <span><strong>{planOnly ? "Parc du Thabor" : "Parc Oberthür"}</strong><small>{planOnly ? "Plan du parc" : "Les arbres du parc"}</small></span>
         </button>
       </header>
-      <div className="map-actions"><button onClick={returnToPark}>⌖ Revenir au parc</button></div>
+      <div className="map-actions"><button onClick={returnToPark}>⌖ Recentrer</button></div>
+      <div className="park-switcher" aria-label="Choisir un parc">
+        <button className={activePark === "oberthur" ? "is-active" : ""} onClick={() => changePark("oberthur")} aria-pressed={activePark === "oberthur"}>Oberthür</button>
+        <button className={activePark === "thabor" ? "is-active" : ""} onClick={() => changePark("thabor")} aria-pressed={activePark === "thabor"}>Thabor</button>
+      </div>
       <div className="map-legend" aria-label="Légende de la carte">
+        {planOnly ? <><span><i className="legend-line" /> Allées</span><span><i className="legend-water" /> Eau</span></> : <>
         <span><i className="legend-dot" style={{ backgroundColor: TREE_COLORS.normal }} /> Arbre</span>
         {remarkableKnown && <span><i className="legend-dot" style={{ backgroundColor: TREE_COLORS.remarkable }} /> Remarquable</span>}
         <span><i className="legend-dot" style={{ backgroundColor: TREE_COLORS.selected }} /> {hasFilters ? "Filtre / sélection" : "Sélection"}</span>
+        </>}
       </div>
-      {selectedTree && <TreeDetail tree={selectedTree} onClose={closeDetail} />}
-      <button ref={listTriggerRef} className="mobile-list-trigger" onClick={() => setMobilePanelOpen(true)}
+      {!planOnly && selectedTree && <TreeDetail tree={selectedTree} onClose={closeDetail} />}
+      {!planOnly && selectedLandmark && <LandmarkDetail landmark={selectedLandmark} onClose={closeLandmark} />}
+      {!planOnly && <button ref={listTriggerRef} className="mobile-list-trigger" onClick={() => setMobilePanelOpen(true)}
         aria-haspopup="dialog" aria-expanded={mobilePanelOpen} aria-controls="mobile-explorer">
         {data ? `Explorer les ${visibleTrees.length} arbres` : "Ouvrir la liste"} <span aria-hidden="true">↑</span>
-      </button>
+      </button>}
     </section>
-    {isMobile ? <dialog id="mobile-explorer" className="explorer-panel" ref={dialogRef} aria-label="Liste des arbres"
+    {planOnly ? <aside className="thabor-panel" aria-label="Plan du Parc du Thabor">
+      <p className="eyebrow">Plan préparé</p><h1>Parc du Thabor</h1>
+      <p>Emprise officielle, allées et plans d’eau. Les bâtiments et l’inventaire d’arbres seront ajoutés plus tard.</p>
+      <p className="thabor-source"><a href="https://data.rennesmetropole.fr/explore/dataset/espaces_verts/" target="_blank" rel="noreferrer">Rennes Métropole</a> · <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> · <a href={THABOR_PLAN_URL} download>GeoJSON</a> · ODbL 1.0</p>
+    </aside> : isMobile ? <dialog id="mobile-explorer" className="explorer-panel" ref={dialogRef} aria-label="Liste des arbres"
       onCancel={(event) => { event.preventDefault(); setMobilePanelOpen(false); }}
       onClose={() => setMobilePanelOpen(false)}>{explorer}</dialog>
       : <aside className="explorer-panel" aria-label="Liste des arbres">{explorer}</aside>}
-    <dialog className="info-dialog" ref={infoDialogRef} aria-labelledby="info-title" onClose={() => setInfoOpen(false)}>
+    {!planOnly && <dialog className="info-dialog" ref={infoDialogRef} aria-labelledby="info-title" onClose={() => setInfoOpen(false)}>
       <div className="info-dialog-topline">
         <div><p className="eyebrow">Informations</p><h2 id="info-title">Données et sources</h2></div>
         <button className="icon-button" autoFocus onClick={() => setInfoOpen(false)} aria-label="Fermer les informations"><CloseIcon /></button>
       </div>
       <p>Les positions et caractéristiques présentées proviennent d’un inventaire ; elles ne constituent pas une observation en temps réel.</p>
       <dl className="info-list">
-        <div><dt>Version</dt><dd>V1.2 · Rennes Métropole</dd></div>
+        <div><dt>Version</dt><dd>V1.3 · Rennes Métropole</dd></div>
         <div><dt>Inventaire</dt><dd><a href={SOURCE_URL} target="_blank" rel="noreferrer">Rennes Métropole</a> · <a href="https://opendatacommons.org/licenses/odbl/1-0/" target="_blank" rel="noreferrer">ODbL 1.0</a></dd></div>
         {data && <div><dt>Extrait</dt><dd>{dateLabel(data.metadata.imported_at)} · <a href={DATA_URL} download>GeoJSON</a></dd></div>}
         <div><dt>Couverture</dt><dd>Arbres situés dans l’emprise GPS du parc ; inventaire potentiellement incomplet.</dd></div>
-        <div><dt>Fond de carte</dt><dd>© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors</a></dd></div>
+        <div><dt>Plan du parc</dt><dd><a href={PARK_PLAN_SOURCE_URL} target="_blank" rel="noreferrer">Emprise : Rennes Métropole</a> · <a href="https://public.sig.rennesmetropole.fr/header/geoservices" target="_blank" rel="noreferrer">Bords d’allées et Hôtel : RTGE Rennes Métropole</a> · <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">Axes, étang et kiosque : OpenStreetMap contributors</a> · <a href={PLAN_URL} download>GeoJSON</a> · ODbL 1.0</dd></div>
+        <div><dt>Repères 3D</dt><dd>Volumes indicatifs : les hauteurs de bâtiments ne sont pas publiées par les sources. Photos au clic : Wikimedia Commons · CC BY-SA 3.0.</dd></div>
       </dl>
-    </dialog>
+    </dialog>}
   </main>;
 }

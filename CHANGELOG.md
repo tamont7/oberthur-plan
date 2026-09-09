@@ -1,5 +1,21 @@
 # Changements
 
+## V1.3 — 9 septembre 2026
+
+### Plan vectoriel du parc
+
+- Le fond de tuiles OpenStreetMap est remplacé par un plan vectoriel embarqué : emprise du Parc Hamelin Oberthür, les 36 allées continues et le plan d’eau. Les segments de bord RTGE ne sont pas affichés afin de préserver la continuité du réseau.
+- L’emprise provient de la couche officielle « Espaces verts » de Rennes Métropole ; l’emprise de l’Hôtel Oberthür provient du RTGE officiel. Les axes, l’étang et le kiosque proviennent d’OpenStreetMap. Ces sources sont attribuées et disponibles sous ODbL 1.0.
+- L’Hôtel Oberthür et le kiosque sont matérialisés par des volumes 3D cliquables ; les hauteurs sont explicitement indicatives car absentes des données. Chaque fiche propose une photo Wikimedia Commons avec auteur et licence CC BY-SA 3.0.
+- Le plan est net sur les écrans à haute densité, fonctionne sans appel à un fond de carte externe et cadre le contour officiel complet du parc.
+- `npm run data:plan` reproduit l’extraction, valide une emprise, un plan d’eau, le réseau d’allées, l’Hôtel, le kiosque et les deux positions de contrôle, puis produit `public/data/parc-oberthur.geojson` de manière atomique.
+- Le panneau ⓘ regroupe désormais aussi les sources et le téléchargement GeoJSON du plan.
+
+### Préparation du Thabor
+
+- Ajout d’un plan vectoriel autonome du Thabor, sans bâtiments ni inventaire d’arbres : emprise officielle, allées et plans d’eau.
+- `npm run data:thabor` permet de régénérer ce fichier local de manière atomique à partir de Rennes Métropole et OpenStreetMap.
+
 ## V1.2 — 9 septembre 2026
 
 ### Données
