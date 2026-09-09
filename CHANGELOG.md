@@ -21,7 +21,7 @@
 ### Carte et interactions
 
 - Cliquer un arbre ne recentre plus la caméra ; seul « Revenir au parc » change la vue.
-- La carte emploie la densité de pixels de l’écran, plafonnée à 2×, pour rester nette sur téléphone sans surcharger le GPU.
+- La carte emploie désormais la densité de pixels native de l’écran pour rester nette sur téléphone.
 - Le survol d’un point affiche son nom.
 - Le survol ou la sélection d’un arbre, dans la liste ou sur la carte, met en évidence le point concerné ; les autres arbres du même taxon restent aussi en bleu, sans être agrandis.
 - Les arbres correspondant à un filtre actif passent en bleu sur la carte.
