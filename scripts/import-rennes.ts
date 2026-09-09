@@ -1,7 +1,8 @@
 import { mkdir, writeFile, rename, unlink } from "node:fs/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { z } from "zod";
-import { API_URL, PARK_BOUNDS, PARK_LOCALISATION, SOURCE_URL, isInsideParkBounds } from "../src/park";
+import { API_URL, PARK_BOUNDS, SOURCE_URL, isInsideParkBounds } from "../src/park";
+import { preferredCommonName } from "../src/botanicalNames";
 import { treeCollectionSchema, treeFeatureSchema } from "../src/treeSchema";
 
 const recordSchema = z.object({
@@ -23,9 +24,9 @@ export function normalizeRecord(input: unknown) {
   const record = recordSchema.parse(input);
   const [lon, lat] = record.geo_shape.geometry.coordinates;
   if (!isInsideParkBounds(lon, lat)) throw new Error(`Arbre ${record.id} hors de l’emprise demandée`);
-  if (record.localisation !== PARK_LOCALISATION) return { reason: "other_location" as const };
   if (record.abattu === 1) return { reason: "felled" as const };
   const scientificName = [record.genre, record.espece, record.variete].map(meaningfulText).filter(Boolean).join(" ") || null;
+  const sourceName = meaningfulText(record.nom_commun);
   // Les zéros de mesure sont traités comme non renseignés. Le brut est conservé.
   const measure = (value: number | null) => value !== null && value > 0 ? value : null;
   const { geo_shape: _shape, geo_point_2d: _point, ...raw } = record;
@@ -34,7 +35,8 @@ export function normalizeRecord(input: unknown) {
     geometry: { type: "Point", coordinates: [lon, lat] },
     properties: {
       source_id: record.id, id_gestion: meaningfulText(record.id_gestion),
-      nom: meaningfulText(record.nom_commun) ?? scientificName ?? `Arbre ${record.id}`,
+      nom: preferredCommonName(sourceName, scientificName) ?? scientificName ?? `Arbre ${record.id}`,
+      nom_source: sourceName,
       nom_scientifique: scientificName, espece: meaningfulText(record.espece),
       hauteur_m: measure(record.hauteur), circonference_cm: measure(record.circonference),
       remarquable: null, photo_url: null, model_3d_url: null,
@@ -85,9 +87,8 @@ export async function importRennes() {
       schema_version: 1, publisher: "Rennes Métropole", dataset: "arbre", source_url: SOURCE_URL,
       license: metadata.license, license_url: metadata.license_url.replace(/^http:/, "https:"),
       imported_at: new Date().toISOString(), source_processed_at: metadata.data_processed,
-      selection: `Emprise fournie + localisation exacte « ${PARK_LOCALISATION} » ; abattu=1 exclu.`,
+      selection: "Emprise GPS fournie ; abattu=1 exclu.",
       query_url: queryUrl, bbox_records: records.length,
-      excluded_other_locations: normalized.filter((item) => item.reason === "other_location").length,
       excluded_felled: normalized.filter((item) => item.reason === "felled").length,
       imported_records: features.length,
     }, features,

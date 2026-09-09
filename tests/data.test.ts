@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { filterTrees, parseTreeData, treeColor, TREE_COLORS } from "../src/data";
+import { filterTrees, parseTreeData, treeColor, treeHighlight, TREE_COLORS } from "../src/data";
 import { treeCollectionSchema } from "../src/treeSchema";
-import { PARK_LOCALISATION, isInsideParkBounds } from "../src/park";
+import { isInsideParkBounds } from "../src/park";
 import { importRennes, normalizeRecord } from "../scripts/import-rennes";
 
 const snapshot = JSON.parse(readFileSync(new URL("../public/data/arbres-rennes.geojson", import.meta.url), "utf8"));
@@ -11,14 +11,24 @@ const { trees, metadata } = parseTreeData(snapshot);
 const first = snapshot.features[0];
 const record = { ...first.properties.source_properties, geo_shape: { geometry: first.geometry } };
 
-test("l’extrait embarqué est valide, traçable et limité aux arbres attribués au parc", () => {
+test("l’extrait embarqué est valide, traçable et limité à l’emprise GPS du parc", () => {
   assert(trees.length > 0);
   assert.equal(new Set(trees.map((tree) => tree.id)).size, trees.length);
   assert.equal(metadata.imported_records, trees.length);
-  assert.equal(metadata.bbox_records, trees.length + metadata.excluded_other_locations + metadata.excluded_felled);
-  assert(trees.every((tree) => tree.location === PARK_LOCALISATION && isInsideParkBounds(tree.longitude, tree.latitude)));
+  assert.equal(metadata.bbox_records, trees.length + metadata.excluded_felled);
+  assert(trees.every((tree) => isInsideParkBounds(tree.longitude, tree.latitude)));
   assert(snapshot.features.every((feature: typeof first) => feature.properties.source_properties.abattu !== 1));
   assert.equal(metadata.license, "Licence ODbL 1.0");
+});
+
+test("un arbre dans l’emprise GPS est retenu même si sa localisation éditoriale est absente", () => {
+  const cèdre = trees.find((tree) => tree.sourceId === 135502);
+  const feature = snapshot.features.find((item: typeof first) => item.properties.source_id === 135502);
+  assert(cèdre && feature);
+  assert.equal(cèdre.name, "Cèdre de l'Atlas");
+  assert.equal(cèdre.location, null);
+  assert.equal(feature.properties.source_properties.gml_id, "arbre.135502");
+  assert.equal(feature.properties.source_properties.code_insee, "35238");
 });
 
 test("l’import conserve l’identité et les unités, sans inventer de statut ni de mesure", () => {
@@ -36,8 +46,21 @@ test("l’import conserve l’identité et les unités, sans inventer de statut 
   assert.equal(measured.feature?.properties.circonference_cm, 150);
 });
 
-test("les arbres voisins et abattus ne sont pas publiés dans l’inventaire du parc", () => {
-  assert.equal(normalizeRecord({ ...record, localisation: "Rue de Paris, Rennes" }).reason, "other_location");
+test("un nom français corrigé reste traçable au libellé publié", () => {
+  const hêtrePourpre = normalizeRecord({
+    ...record,
+    nom_commun: "Hêtre commun",
+    genre: "Fagus",
+    espece: "sylvatica",
+    variete: "Purpurea",
+  });
+  assert.equal(hêtrePourpre.feature?.properties.nom, "Hêtre pourpre");
+  assert.equal(hêtrePourpre.feature?.properties.nom_source, "Hêtre commun");
+  assert.equal(hêtrePourpre.feature?.properties.nom_scientifique, "Fagus sylvatica Purpurea");
+});
+
+test("les arbres dans l’emprise GPS sont publiés, sauf s’ils sont signalés abattus", () => {
+  assert(normalizeRecord({ ...record, localisation: null }).feature);
   assert.equal(normalizeRecord({ ...record, abattu: 1 }).reason, "felled");
 });
 
@@ -51,11 +74,12 @@ test("des coordonnées inversées, identifiants dupliqués ou champs manquants s
   assert.throws(() => normalizeRecord({ id: 1 }));
 });
 
-test("la recherche ignore les accents et combine texte, taxon et statut explicite", () => {
+test("la recherche ignore les accents, accepte les suggestions composées et combine texte, taxon et statut explicite", () => {
   const accent = filterTrees(trees, "érable", "", false);
   assert(accent.length > 0);
   assert.deepEqual(accent, filterTrees(trees, "ERABLE", "", false));
-  assert.equal(filterTrees(trees, String(trees[0].sourceId), trees[0].species, false)[0].id, trees[0].id);
+  assert.equal(filterTrees(trees, `${trees[0].name} · ${trees[0].species}`, "", false)[0].id, trees[0].id);
+  assert.equal(filterTrees(trees, String(trees[0].sourceId), "", false).length, 0);
   assert.equal(filterTrees(trees, "zzzintrouvable", "", false).length, 0);
   assert.equal(filterTrees(trees, "", "", true).length, 0);
   const marked = [{ ...trees[0], remarkable: true }, { ...trees[1], remarkable: false }, trees[2]];
@@ -66,6 +90,19 @@ test("les symboles distinguent sélection, remarquable et arbre ordinaire", () =
   assert.equal(treeColor({ remarkable: null }, false), TREE_COLORS.normal);
   assert.equal(treeColor({ remarkable: true }, false), TREE_COLORS.remarkable);
   assert.equal(treeColor({ remarkable: true }, true), TREE_COLORS.selected);
+});
+
+test("la mise en évidence privilégie le survol, puis la sélection, puis le même taxon", () => {
+  const hovered = trees.find((tree) => trees.some((other) => other.id !== tree.id && other.species === tree.species));
+  assert(hovered);
+  const sameSpecies = trees.find((tree) => tree.id !== hovered.id && tree.species === hovered.species);
+  const otherSpecies = trees.find((tree) => tree.species !== hovered.species);
+  assert(sameSpecies && otherSpecies);
+  assert.equal(treeHighlight(hovered, null, hovered), "hovered");
+  assert.equal(treeHighlight(sameSpecies, null, hovered), "same_species");
+  assert.equal(treeHighlight(sameSpecies, hovered.id, hovered), "same_species");
+  assert.equal(treeHighlight(sameSpecies, sameSpecies.id, hovered), "selected");
+  assert.equal(treeHighlight(otherSpecies, null, hovered), "normal");
 });
 
 test("une pagination interrompue ne remplace jamais l’extrait utilisable", async () => {

@@ -1,6 +1,6 @@
-# Parc Oberthür — V1.1
+# Parc Oberthür — V1.2
 
-Carte des arbres du parc à Rennes : React, TypeScript, Vite et CesiumJS, avec un extrait réel de l’inventaire de Rennes Métropole. Le brief d’origine est dans [softplan.md](softplan.md).
+Carte des arbres du parc à Rennes : React, TypeScript, Vite et CesiumJS, avec un extrait réel de l’inventaire de Rennes Métropole. Le brief d’origine est dans [softplan.md](softplan.md) et les évolutions sont consignées dans [CHANGELOG.md](CHANGELOG.md).
 
 ## Démarrage
 
@@ -27,10 +27,10 @@ Source : [Arbres sur l’espace public sur Rennes Métropole](https://data.renne
 1. Lire le schéma et la licence du jeu.
 2. Rechercher les points dans l’emprise `[ouest, sud, est, nord]` : `[-1.661317, 48.111249, -1.657734, 48.113921]`.
 3. Paginer les résultats par lots de 100, triés par identifiant, et vérifier leur nombre.
-4. Retenir uniquement `localisation = "Parc Hamelin Oberthür, Rennes"`, exclure `abattu = 1`. Le rectangle seul inclut des rues et squares voisins ; ce n’est pas le contour officiel du parc.
+4. Retenir les points situés dans l’emprise GPS fournie, exclure `abattu = 1`. Le rectangle n’est pas le contour officiel du parc : les limites sont donc volontairement transparentes et modifiables dans `src/park.ts`.
 5. Normaliser et valider les points, propriétés et identifiants. Écrire le GeoJSON seulement lorsque l’import complet est valide.
 
-Extrait du 9 septembre 2026 : **264 arbres retenus sur 299 points** dans l’emprise, 35 points d’autres localisations exclus, aucun arbre signalé abattu dans les points retenus par localisation. Ce nombre n’est pas une garantie d’exhaustivité de l’inventaire physique.
+Extrait du 9 septembre 2026 : **299 arbres non abattus** dans l’emprise GPS. Ce nombre ne constitue pas une garantie d’exhaustivité de l’inventaire physique.
 
 ```bash
 npm run data:import
@@ -53,7 +53,9 @@ Le fichier conserve l’URL de requête, la date d’extraction, la date de trai
 | `date_plantation`, `date_maj` | Valeurs sources conservées, sans inventer de date |
 | Statut remarquable, photo, modèle 3D | `null` : non fournis par ce jeu |
 
-Les mesures ≤ 0 sont considérées non exploitables, pas des dimensions physiques. Le filtre « Remarquables » reste désactivé avec une explication tant qu’aucun statut explicite n’est disponible. Une grande hauteur ne permet pas d’attribuer ce statut. Les totems non signalés abattus restent présents avec leur type de taille.
+Le `nom` est celui affiché. Le libellé publié est conservé dans `nom_source`. Une correction éditoriale est appliquée uniquement lorsque le taxon rend la traduction certaine : par exemple `Fagus sylvatica Purpurea` s’affiche comme « Hêtre pourpre », et la fiche indique « Nom publié : Hêtre commun ». Le taxon et le libellé source restent inchangés dans les données brutes.
+
+Les mesures ≤ 0 sont considérées non exploitables, pas des dimensions physiques. Le filtre « Remarquables » reste désactivé tant qu’aucun statut explicite n’est disponible. Une grande hauteur ne permet pas d’attribuer ce statut. Les arbres non signalés abattus par la source peuvent subsister dans l’inventaire.
 
 Les types internes React utilisent camelCase ; le contrat GeoJSON est validé par [src/treeSchema.ts](src/treeSchema.ts). L’adaptation et la recherche sont dans [src/data.ts](src/data.ts). Aucun modèle 3D n’est requis.
 

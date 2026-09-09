@@ -15,11 +15,11 @@ export const treeFeatureSchema = z.object({
   }),
   properties: z.object({
     source_id: z.number().int().nonnegative(), id_gestion: optionalText,
-    nom: z.string().min(1), nom_scientifique: optionalText, espece: optionalText,
+    nom: z.string().min(1), nom_source: optionalText, nom_scientifique: optionalText, espece: optionalText,
     hauteur_m: measurement, circonference_cm: measurement, remarquable: z.boolean().nullable(),
     description: optionalText, photo_url: z.string().url().nullable(), model_3d_url: z.string().url().nullable(),
     date_plantation: optionalDate, date_maj: optionalDate,
-    localisation: z.string().min(1), type_taille: optionalText, fonction: optionalText,
+    localisation: optionalText, type_taille: optionalText, fonction: optionalText,
     // Valeurs originales conservées pour rendre la normalisation vérifiable.
     source_properties: z.record(z.unknown()),
   }),
@@ -33,8 +33,8 @@ export const treeCollectionSchema = z.object({
     source_url: z.string().url(), license: z.string().min(1), license_url: z.string().url(),
     imported_at: z.string().datetime(), source_processed_at: optionalDate,
     selection: z.string().min(1), query_url: z.string().url(),
-    bbox_records: z.number().int().nonnegative(), excluded_other_locations: z.number().int().nonnegative(),
-    excluded_felled: z.number().int().nonnegative(), imported_records: z.number().int().positive(),
+    bbox_records: z.number().int().nonnegative(), excluded_felled: z.number().int().nonnegative(),
+    imported_records: z.number().int().positive(),
   }),
   features: z.array(treeFeatureSchema).min(1),
 }).superRefine((collection, ctx) => {

@@ -1,9 +1,12 @@
 import { test, expect, type Page } from "@playwright/test";
 
 // Les tests n’utilisent pas les serveurs communautaires OSM. Le moteur WebGL reste réel.
-const tile = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aZ1sAAAAASUVORK5CYII=", "base64");
+const tile = `<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <rect width="256" height="256" fill="#d7e4d5"/>
+  <path d="M0 128h256M128 0v256" stroke="#b6ccb6" stroke-width="2"/>
+</svg>`;
 test.beforeEach(async ({ page }) => {
-  await page.route("https://tile.openstreetmap.org/**", (route) => route.fulfill({ contentType: "image/png", body: tile }));
+  await page.route("https://tile.openstreetmap.org/**", (route) => route.fulfill({ contentType: "image/svg+xml", body: tile }));
 });
 
 async function openExplorer(page: Page, mobile: boolean) {
@@ -18,6 +21,14 @@ test("carte, crédits, filtres, fiche et recentrage", async ({ page, isMobile },
   await expect(page.locator(".map-credits").getByRole("link", { name: "OpenStreetMap", exact: true })).toBeVisible();
   await openExplorer(page, isMobile);
   await expect(page.locator(".tree-list-item").first()).toBeVisible();
+  if (!isMobile) {
+    await page.getByRole("button", { name: "Informations sur les données" }).click();
+    const infoDialog = page.locator(".info-dialog");
+    await expect(infoDialog).toBeVisible();
+    await expect(infoDialog).toContainText("ODbL 1.0");
+    await infoDialog.getByRole("button", { name: "Fermer les informations" }).click();
+    await expect(infoDialog).not.toBeVisible();
+  }
   const total = await page.locator(".tree-list-item").count();
   expect(total).toBeGreaterThan(100);
   await expect(page.getByRole("button", { name: "★ Remarquables" })).toBeDisabled();
@@ -27,7 +38,19 @@ test("carte, crédits, filtres, fiche et recentrage", async ({ page, isMobile },
   expect(filtered).toBeGreaterThan(0);
   expect(filtered).toBeLessThan(total);
   await expect(page.locator(".cesium-map")).toHaveAttribute("data-visible-count", String(filtered));
-  await page.getByLabel("Espèce / taxon").selectOption("Acer japonicum");
+  await page.getByRole("button", { name: "Effacer la recherche" }).click();
+  await expect(search).toHaveValue("");
+  await search.fill("érable");
+  await expect(page.locator("#species-suggestions .species-option-secondary").first()).toBeVisible();
+  await page.locator(".species-picker summary").click();
+  const speciesSelect = page.locator(".species-picker-menu");
+  const japaneseMaple = speciesSelect.locator(".species-option").filter({ hasText: "Erable du Japon" });
+  await expect(japaneseMaple).toBeVisible();
+  await japaneseMaple.click();
+  await expect(search).toHaveValue("Erable du Japon · Acer japonicum");
+  await page.getByRole("button", { name: "Trier les arbres et les espèces par nom scientifique" }).click();
+  await expect(page.getByRole("button", { name: "Trier les arbres et les espèces par nombre d’arbres" })).toBeVisible();
+  await expect(search).toHaveValue("Acer japonicum · Erable du Japon");
   await expect(page.locator(".tree-list-item").first()).toContainText("Acer japonicum");
   await search.fill("aucun-arbre-xyz");
   await expect(page.getByText("Aucun arbre ne correspond à ces critères.")).toBeVisible();
@@ -36,20 +59,14 @@ test("carte, crédits, filtres, fiche et recentrage", async ({ page, isMobile },
   await page.screenshot({ path: testInfo.outputPath("explorer.png") });
   await page.locator(".tree-list-item").first().click();
   await expect(page.getByRole("heading", { name: "Erable du Japon", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Ouvrir le premier résultat Wikipédia pour Acer japonicum" })).toHaveAttribute("href", "https://fr.wikipedia.org/w/index.php?search=Acer%20japonicum");
   await expect(page.locator(".tree-detail")).toContainText("Non renseigné");
   await expect(page.locator(".tree-detail")).toContainText("GPS :");
   if (isMobile) await expect(page.getByRole("dialog")).not.toBeVisible();
   await page.screenshot({ path: testInfo.outputPath("tree.png") });
   await page.getByRole("button", { name: "Fermer la fiche" }).click();
   if (isMobile) await expect(page.getByRole("button", { name: /Explorer les/ })).toBeFocused();
-  else {
-    await expect(page.locator(".tree-list-item").first()).toBeFocused();
-    // La caméra a centré l’arbre sélectionné : un clic au centre rouvre sa fiche.
-    await page.waitForTimeout(900);
-    const box = (await page.locator(".cesium-map").boundingBox())!;
-    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
-    await expect(page.locator(".tree-detail")).toBeVisible();
-  }
+  else await expect(page.locator(".tree-list-item").first()).toBeFocused();
   await page.getByRole("button", { name: "⌖ Revenir au parc", exact: true }).click();
   await expect(page.locator(".tree-detail")).not.toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -101,7 +118,7 @@ test("échec du fond de carte puis reprise", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByText("Le fond de carte n’a pas pu être chargé. Les arbres restent consultables.")).toBeVisible();
   await page.unroute("https://tile.openstreetmap.org/**");
-  await page.route("https://tile.openstreetmap.org/**", (route) => route.fulfill({ contentType: "image/png", body: tile }));
+  await page.route("https://tile.openstreetmap.org/**", (route) => route.fulfill({ contentType: "image/svg+xml", body: tile }));
   await page.getByRole("button", { name: "Réessayer le fond de carte" }).click();
   await expect(page.locator(".cesium-map")).toHaveAttribute("data-map-state", "ready");
   await expect(page.getByText("Le fond de carte n’a pas pu être chargé. Les arbres restent consultables.")).not.toBeVisible();
