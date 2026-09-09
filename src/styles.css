@@ -90,10 +90,12 @@ h1 { margin-bottom: 0; color: #17372c; font-family: "Fraunces", Georgia, serif; 
 .info-button:hover { color: #244a39; background: #eaf1eb; }
 .info-button svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.7; }
 
-.tree-detail { position: absolute; z-index: 3; left: 28px; bottom: 28px; width: min(354px, calc(100% - 56px)); border: 1px solid rgba(23, 55, 44, .11); border-radius: 12px; padding: 19px 20px 17px; background: rgba(255, 255, 255, .97); box-shadow: 0 12px 35px rgba(20, 50, 38, .19); animation: card-in .2s ease-out; }
+.tree-detail { position: absolute; z-index: 3; left: 28px; bottom: 28px; width: min(320px, calc(100% - 56px)); border: 1px solid rgba(23, 55, 44, .12); border-radius: 10px; padding: 13px 14px 12px; background: rgba(255, 255, 255, .98); box-shadow: 0 10px 27px rgba(20, 50, 38, .16); animation: card-in .2s ease-out; touch-action: pan-x; transition: transform .16s ease-out; }
 @keyframes card-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-.detail-topline { display: flex; align-items: center; justify-content: space-between; margin-bottom: 11px; }
+.detail-topline { display: flex; align-items: flex-start; justify-content: space-between; gap: 9px; }
 .detail-kicker { color: #59826c; font-family: "DM Mono", monospace; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
+.tree-detail .icon-button { display: grid; place-items: center; flex: 0 0 auto; width: 27px; height: 27px; margin: -3px -3px 0 0; border: 0; border-radius: 5px; color: #789083; background: transparent; }
+.tree-detail .icon-button:hover { color: #244a39; background: #edf3ed; }
 .icon-button { display: grid; place-items: center; flex: 0 0 auto; width: 44px; height: 44px; border: 0; border-radius: 50%; color: #537064; background: #f0f4ef; }
 .icon-button:hover { color: #244a39; background: #e3ece3; }
 .info-dialog { box-sizing: border-box; width: min(460px, calc(100vw - 32px)); max-height: min(640px, calc(100dvh - 32px)); overflow: auto; border: 1px solid #d5e0d6; border-radius: 14px; padding: 22px; color: #3d5b4c; background: #fbfcf9; box-shadow: 0 18px 50px rgba(20, 50, 38, .25); }
@@ -108,10 +110,17 @@ h1 { margin-bottom: 0; color: #17372c; font-family: "Fraunces", Georgia, serif; 
 .info-list dd { margin: 0; font-size: 12px; line-height: 1.5; }
 .info-list a { color: #22563f; text-underline-offset: 2px; }
 .icon-button svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-width: 1.9; }
-.tree-detail h2 { margin-bottom: 2px; color: #183d2e; font-family: "Fraunces", Georgia, serif; font-size: 25px; font-weight: 600; letter-spacing: -.04em; line-height: 1.05; }
-.scientific-name { margin-bottom: 13px; color: #6f897b; font-family: Georgia, serif; font-size: 13px; font-style: italic; }
+.tree-detail h2 { margin: 0; color: #1d4534; font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif; font-size: 16px; font-weight: 650; letter-spacing: -.015em; line-height: 1.25; }
+.scientific-name { margin: 0 0 11px; color: #6f897b; font-family: Georgia, serif; font-size: 12px; font-style: italic; }
 .scientific-name a { color: inherit; text-decoration-color: #b4c7bb; text-underline-offset: 3px; }
 .scientific-name a:hover { color: #22563f; text-decoration-color: currentColor; }
+.tree-summary { display: flex; align-items: baseline; gap: 7px; margin: 4px 0 8px; color: #6f897b; font-size: 12px; }
+.tree-summary span { color: #788e82; font-family: "DM Mono", monospace; font-size: 9px; letter-spacing: .055em; text-transform: uppercase; }
+.tree-summary strong { color: #315746; font-size: 12px; font-weight: 650; }
+.detail-toggle { display: inline-flex; align-items: center; gap: 6px; border: 0; padding: 1px 0; color: #2f7657; background: transparent; font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif; font-size: 12px; font-weight: 650; text-align: left; }
+.detail-toggle:hover { color: #174b35; text-decoration: underline; text-decoration-color: #aac9b5; text-underline-offset: 3px; }
+.detail-toggle-mark { display: grid; place-items: center; width: 15px; height: 15px; border: 1px solid #aac9b5; border-radius: 50%; font-size: 14px; font-weight: 400; line-height: 1; }
+.tree-detail-extra { margin-top: 12px; padding-top: 12px; border-top: 1px solid #e4ebe3; }
 .detail-description { margin-bottom: 16px; color: #496457; font-size: 13px; line-height: 1.48; }
 .tree-facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; overflow: hidden; margin: 0 0 14px; border-radius: 7px; background: #dce6dd; }
 .tree-facts div { padding: 9px 8px; background: #f5f8f4; }
@@ -131,10 +140,10 @@ h1 { margin-bottom: 0; color: #17372c; font-family: "Fraunces", Georgia, serif; 
   .tree-detail { bottom: 92px; left: 16px; width: calc(100% - 32px); padding: 17px; }
   .tree-detail h2 { font-size: 23px; }
   .mobile-list-trigger { position: absolute; z-index: 3; bottom: 16px; left: 50%; display: flex; align-items: center; gap: 13px; transform: translateX(-50%); border: 0; border-radius: 100px; padding: 12px 16px; color: #fff; background: #1e503c; box-shadow: 0 6px 20px rgba(14, 54, 37, .3); font-size: 13px; font-weight: 600; white-space: nowrap; }
-  .explorer-panel { position: fixed; z-index: 10; inset: auto 0 0; margin: 0; width: 100%; max-width: none; height: min(80dvh, 700px); max-height: 90dvh; border: 0; border-radius: 20px 20px 0 0; box-shadow: 0 -10px 30px rgba(20, 50, 38, .17); }
+  .explorer-panel { position: fixed; z-index: 10; inset: auto 0 0; margin: 0; width: 100%; max-width: none; height: min(80dvh, 700px); max-height: 90dvh; border: 0; border-radius: 20px 20px 0 0; box-shadow: 0 -10px 30px rgba(20, 50, 38, .17); transition: transform .16s ease-out; }
   .explorer-panel:not([open]) { display: none; }
   .explorer-panel::backdrop { background: rgb(17 42 31 / .3); }
-  .mobile-panel-handle { display: block; flex: 0 0 auto; width: 37px; height: 4px; margin: 10px auto 0; border-radius: 20px; background: #bdcec1; }
+  .mobile-panel-handle { display: block; flex: 0 0 auto; width: 37px; height: 4px; margin: 10px auto 0; border-radius: 20px; background: #bdcec1; cursor: grab; touch-action: none; }
   .panel-heading { padding: 14px 22px 13px; }
   h1 { font-size: 25px; }
   .mobile-close-panel { display: grid; }

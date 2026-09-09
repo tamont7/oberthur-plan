@@ -53,6 +53,7 @@ test("carte, crédits, filtres, fiche et recentrage", async ({ page, isMobile },
   await expect(page.getByRole("heading", { name: "Erable du Japon", exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "Ouvrir le premier résultat Wikipédia pour Acer japonicum" })).toHaveAttribute("href", "https://fr.wikipedia.org/w/index.php?search=Acer%20japonicum");
   await expect(page.locator(".tree-detail")).toContainText("Non renseigné");
+  await page.getByRole("button", { name: "Détails" }).click();
   await expect(page.locator(".tree-detail")).toContainText("GPS :");
   if (isMobile) await expect(page.getByRole("dialog")).not.toBeVisible();
   await page.screenshot({ path: testInfo.outputPath("tree.png") });

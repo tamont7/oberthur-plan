@@ -1,4 +1,4 @@
-import { Component, lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Component, lazy, Suspense, useEffect, useMemo, useRef, useState, type PointerEvent, type ReactNode } from "react";
 import { filterTrees, normalizeSearch, parseTreeData, treeColor, TREE_COLORS, type Tree, type TreeData } from "./data";
 import { PARK_PLAN_SOURCE_URL, SOURCE_URL } from "./park";
 import { parseParkPlan, type ParkLandmark, type ParkPlan } from "./plan";
@@ -94,37 +94,54 @@ class MapBoundary extends Component<{ children: ReactNode; onRetry: () => void }
 function TreeDetail({ tree, onClose }: { tree: Tree; onClose: () => void }) {
   const headingRef = useRef<HTMLHeadingElement>(null);
   const scientificName = tree.scientificName;
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const touchStartY = useRef<number | null>(null);
+  const [dragOffset, setDragOffset] = useState(0);
   useEffect(() => {
     const timer = window.setTimeout(() => headingRef.current?.focus(), 0);
     return () => window.clearTimeout(timer);
   }, [tree.id]);
-  return <article className="tree-detail" aria-labelledby="detail-title">
+  useEffect(() => setDetailsOpen(false), [tree.id]);
+  const beginSwipe = (event: PointerEvent<HTMLElement>) => {
+    if (event.pointerType === "touch") touchStartY.current = event.clientY;
+  };
+  const moveSwipe = (event: PointerEvent<HTMLElement>) => {
+    if (touchStartY.current !== null) setDragOffset(Math.max(0, event.clientY - touchStartY.current));
+  };
+  const endSwipe = () => {
+    if (dragOffset > 72) onClose();
+    touchStartY.current = null;
+    setDragOffset(0);
+  };
+  return <article className="tree-detail" aria-labelledby="detail-title" onPointerDown={beginSwipe} onPointerMove={moveSwipe} onPointerUp={endSwipe} onPointerCancel={endSwipe} style={{ transform: `translateY(${dragOffset}px)` }}>
     <div className="detail-topline">
-      <span className="detail-kicker">{tree.remarkable === true ? "Arbre remarquable" : "Inventaire métropolitain"}</span>
+      <h2 id="detail-title" ref={headingRef} tabIndex={-1}>{tree.name}</h2>
       <button className="icon-button" onClick={onClose} aria-label="Fermer la fiche"><CloseIcon /></button>
     </div>
-    <h2 id="detail-title" ref={headingRef} tabIndex={-1}>{tree.name}</h2>
-    <p className="scientific-name">{scientificName ? <a href={`${WIKIPEDIA_SEARCH_URL}${encodeURIComponent(scientificName)}`} target="_blank" rel="noreferrer" aria-label={`Ouvrir le premier résultat Wikipédia pour ${scientificName}`} onClick={(event) => {
-      const tab = window.open(`${WIKIPEDIA_SEARCH_URL}${encodeURIComponent(scientificName)}`, "_blank");
-      if (!tab) return;
-      event.preventDefault();
-      tab.opener = null;
-      void resolveWikipediaArticle(tab, scientificName);
-    }}>{scientificName}<span aria-hidden="true"> ↗</span></a> : "Taxon non renseigné"}</p>
-    {tree.sourceName && tree.sourceName !== tree.name && <p className="source-name">Nom publié : {tree.sourceName}</p>}
-    <p className="tree-reference">Référence {tree.managementId ?? tree.sourceId}</p>
-    {tree.photoUrl && <img className="tree-photo" src={tree.photoUrl} alt={tree.name} loading="lazy" />}
-    {tree.description && <p className="detail-description">{tree.description}</p>}
-    <dl className="tree-facts">
-      <div><dt>Hauteur</dt><dd>{tree.height === null ? "Non renseignée" : `${tree.height} m`}</dd></div>
-      <div><dt>Circonférence</dt><dd>{tree.circumference === null ? "Non renseignée" : `${tree.circumference} cm`}</dd></div>
-      <div><dt>Plantation</dt><dd>{dateLabel(tree.plantedAt)}</dd></div>
-      <div><dt>Type de taille</dt><dd>{tree.pruning ?? "Non renseigné"}</dd></div>
-      <div><dt>Remarquable</dt><dd>{tree.remarkable === null ? "Non renseigné" : tree.remarkable ? "Oui" : "Non"}</dd></div>
-      <div><dt>Mise à jour de la fiche source</dt><dd>{dateLabel(tree.updatedAt)}</dd></div>
-    </dl>
-    <p className="coordinates">GPS : {tree.latitude.toFixed(6)}, {tree.longitude.toFixed(6)}</p>
-</article>;
+    <p className="tree-summary"><span>Hauteur</span><strong>{tree.height === null ? "Non renseignée" : `${tree.height} m`}</strong></p>
+    <button className="detail-toggle" onClick={() => setDetailsOpen((open) => !open)} aria-expanded={detailsOpen}><span>{detailsOpen ? "Réduire" : "Voir la fiche"}</span><span className="detail-toggle-mark" aria-hidden="true">{detailsOpen ? "−" : "+"}</span></button>
+    {detailsOpen && <div className="tree-detail-extra">
+      <p className="scientific-name">{scientificName ? <a href={`${WIKIPEDIA_SEARCH_URL}${encodeURIComponent(scientificName)}`} target="_blank" rel="noreferrer" aria-label={`Ouvrir le premier résultat Wikipédia pour ${scientificName}`} onClick={(event) => {
+        const tab = window.open(`${WIKIPEDIA_SEARCH_URL}${encodeURIComponent(scientificName)}`, "_blank");
+        if (!tab) return;
+        event.preventDefault();
+        tab.opener = null;
+        void resolveWikipediaArticle(tab, scientificName);
+      }}>{scientificName}<span aria-hidden="true"> ↗</span></a> : "Taxon non renseigné"}</p>
+      {tree.sourceName && tree.sourceName !== tree.name && <p className="source-name">Nom publié : {tree.sourceName}</p>}
+      <p className="tree-reference">Référence {tree.managementId ?? tree.sourceId}</p>
+      {tree.photoUrl && <img className="tree-photo" src={tree.photoUrl} alt={tree.name} loading="lazy" />}
+      {tree.description && <p className="detail-description">{tree.description}</p>}
+      <dl className="tree-facts">
+        <div><dt>Circonférence</dt><dd>{tree.circumference === null ? "Non renseignée" : `${tree.circumference} cm`}</dd></div>
+        <div><dt>Plantation</dt><dd>{dateLabel(tree.plantedAt)}</dd></div>
+        <div><dt>Type de taille</dt><dd>{tree.pruning ?? "Non renseigné"}</dd></div>
+        <div><dt>Remarquable</dt><dd>{tree.remarkable === null ? "Non renseigné" : tree.remarkable ? "Oui" : "Non"}</dd></div>
+        <div><dt>Mise à jour de la fiche source</dt><dd>{dateLabel(tree.updatedAt)}</dd></div>
+      </dl>
+      <p className="coordinates">GPS : {tree.latitude.toFixed(6)}, {tree.longitude.toFixed(6)}</p>
+    </div>}
+  </article>;
 }
 
 function LandmarkDetail({ landmark, onClose }: { landmark: ParkLandmark; onClose: () => void }) {
@@ -172,6 +189,8 @@ export default function App() {
   const listTriggerRef = useRef<HTMLButtonElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const explorerTouchStartY = useRef<number | null>(null);
+  const [explorerDragOffset, setExplorerDragOffset] = useState(0);
   const planOnly = activePark === "thabor";
 
   useEffect(() => {
@@ -344,10 +363,20 @@ export default function App() {
     else url.searchParams.delete("plan");
     window.history.pushState({}, "", url);
   };
+  const beginExplorerSwipe = (event: PointerEvent<HTMLElement>) => {
+    if (event.pointerType === "touch") explorerTouchStartY.current = event.clientY;
+  };
+  const moveExplorerSwipe = (event: PointerEvent<HTMLElement>) => {
+    if (explorerTouchStartY.current !== null) setExplorerDragOffset(Math.max(0, event.clientY - explorerTouchStartY.current));
+  };
+  const endExplorerSwipe = () => {
+    if (explorerDragOffset > 72) setMobilePanelOpen(false);
+    explorerTouchStartY.current = null;
+    setExplorerDragOffset(0);
+  };
   const hasFilters = Boolean(query || remarkableOnly);
 
   const explorer = <>
-    {isMobile && <div className="panel-heading panel-heading-actions"><button className="icon-button" onClick={() => setMobilePanelOpen(false)} aria-label="Fermer la liste"><CloseIcon /></button></div>}
     <div className="search-combobox">
       <div className="search-field">
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.5" /><path d="m16 16 4.2 4.2" /></svg>
@@ -426,9 +455,10 @@ export default function App() {
       <p className="eyebrow">Plan préparé</p><h1>Parc du Thabor</h1>
       <p>Emprise officielle, allées et plans d’eau. Les bâtiments et l’inventaire d’arbres seront ajoutés plus tard.</p>
       <p className="thabor-source"><a href="https://data.rennesmetropole.fr/explore/dataset/espaces_verts/" target="_blank" rel="noreferrer">Rennes Métropole</a> · <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> · <a href={THABOR_PLAN_URL} download>GeoJSON</a> · ODbL 1.0</p>
-    </aside> : isMobile ? <dialog id="mobile-explorer" className="explorer-panel" ref={dialogRef} aria-label="Liste des arbres"
+    </aside> : isMobile ? <dialog id="mobile-explorer" className="explorer-panel" ref={dialogRef} aria-label="Liste des arbres" style={{ transform: `translateY(${explorerDragOffset}px)` }}
       onCancel={(event) => { event.preventDefault(); setMobilePanelOpen(false); }}
-      onClose={() => setMobilePanelOpen(false)}>{explorer}</dialog>
+      onClose={() => setMobilePanelOpen(false)}><div className="mobile-panel-handle" aria-hidden="true"
+        onPointerDown={beginExplorerSwipe} onPointerMove={moveExplorerSwipe} onPointerUp={endExplorerSwipe} onPointerCancel={endExplorerSwipe} />{explorer}</dialog>
       : <aside className="explorer-panel" aria-label="Liste des arbres">{explorer}</aside>}
     {!planOnly && <dialog className="info-dialog" ref={infoDialogRef} aria-labelledby="info-title" onClose={() => setInfoOpen(false)}>
       <div className="info-dialog-topline">
