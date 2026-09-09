@@ -1002,6 +1002,22 @@ export default function MapView(
       );
 
       interactions.setInputAction(
+        (event: ScreenSpaceEventHandler.PositionedEvent) => {
+          if (
+            dragStart &&
+            Math.hypot(
+              event.position.x - dragStart.x,
+              event.position.y - dragStart.y,
+            ) > 24
+          ) {
+            draggedAt = Date.now();
+          }
+          dragStart = null;
+        },
+        ScreenSpaceEventType.LEFT_UP,
+      );
+
+      interactions.setInputAction(
         (
           event:
             ScreenSpaceEventHandler.PositionedEvent,
@@ -1064,7 +1080,7 @@ export default function MapView(
             Math.hypot(
               event.endPosition.x - dragStart.x,
               event.endPosition.y - dragStart.y,
-            ) > 8
+            ) > 24
           ) {
             draggedAt = Date.now();
           }
