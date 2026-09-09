@@ -10,6 +10,7 @@
 - Le plan est net sur les écrans à haute densité, fonctionne sans appel à un fond de carte externe et cadre le contour officiel complet du parc.
 - `npm run data:plan` reproduit l’extraction, valide une emprise, un plan d’eau, le réseau d’allées, l’Hôtel, le kiosque et les deux positions de contrôle, puis produit `public/data/parc-oberthur.geojson` de manière atomique.
 - Le panneau ⓘ regroupe désormais aussi les sources et le téléchargement GeoJSON du plan.
+- Le plan de ville simplifié gris de Rennes Métropole apporte désormais un contexte léger autour des deux parcs, sans clé API.
 
 ### Préparation du Thabor
 

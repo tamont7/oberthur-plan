@@ -18,7 +18,7 @@ npm run check           # validation des données, tests et compilation
 npm run preview         # servir la compilation locale
 ```
 
-La carte utilise un plan vectoriel embarqué : aucune tuile de fond n’est demandée pendant la visite. La liste et les fiches restent utilisables lorsque WebGL est indisponible.
+La carte utilise un plan vectoriel embarqué, sur un fond gris officiel de Rennes Métropole. La liste et les fiches restent utilisables lorsque WebGL est indisponible.
 
 ## Données de Rennes Métropole : comment ?
 
@@ -61,7 +61,7 @@ Les types internes React utilisent camelCase ; le contrat GeoJSON est validé pa
 
 ## Plan vectoriel du parc
 
-Le fond est un plan local, dessiné par Cesium sous les points des arbres : emprise végétale, contour, 36 allées continues et étang. Il est net sur téléphone et ne dépend pas de tuiles distantes.
+Le fond est un plan local, dessiné par Cesium sous les points des arbres : emprise végétale, contour, 36 allées continues et étang. Le [plan de ville simplifié gris](https://public.sig.rennesmetropole.fr/header/geoservices) de Rennes Métropole apporte le contexte autour du parc, via ses tuiles TMS publiques ; le plan vectoriel reste au premier plan.
 
 - L’emprise officielle « Parc Hamelin Oberthür » vient de la couche [Espaces verts de Rennes Métropole](https://data.rennesmetropole.fr/explore/dataset/espaces_verts/), sous ODbL 1.0.
 - L’emprise de l’Hôtel Oberthür est téléchargée depuis les géoservices [RTGE de Rennes Métropole](https://public.sig.rennesmetropole.fr/header/geoservices), sous ODbL 1.0.

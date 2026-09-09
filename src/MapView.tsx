@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Cartesian3, Color, ConstantProperty, HeadingPitchRange, HorizontalOrigin, LabelStyle, Math as CesiumMath, Matrix4, PolygonHierarchy, ScreenSpaceEventHandler, ScreenSpaceEventType, VerticalOrigin, Viewer } from "cesium";
+import { Cartesian3, Color, ConstantProperty, Credit, HeadingPitchRange, ImageryLayer, Math as CesiumMath, Matrix4, PolygonHierarchy, ScreenSpaceEventHandler, ScreenSpaceEventType, UrlTemplateImageryProvider, Viewer } from "cesium";
 import { treeColor, treeHighlight, type Tree } from "./data";
 import { PARK_PLAN_BOUNDS } from "./park";
 import { isParkLandmark, type ParkLandmark, type ParkPlan } from "./plan";
@@ -20,12 +20,6 @@ const PLAN_HEIGHT = 0.25;
 
 function positions(coordinates: readonly (readonly number[])[], height = PLAN_HEIGHT) {
   return coordinates.map(([longitude, latitude]) => Cartesian3.fromDegrees(longitude, latitude, height));
-}
-
-function centrePosition(coordinates: readonly (readonly number[])[], height: number) {
-  const points = coordinates.length > 1 && coordinates[0][0] === coordinates.at(-1)?.[0] && coordinates[0][1] === coordinates.at(-1)?.[1] ? coordinates.slice(0, -1) : coordinates;
-  const [longitude, latitude] = points.reduce<[number, number]>(([sumLongitude, sumLatitude], [pointLongitude, pointLatitude]) => [sumLongitude + pointLongitude, sumLatitude + pointLatitude], [0, 0]);
-  return Cartesian3.fromDegrees(longitude / points.length, latitude / points.length, height);
 }
 
 function setParkView(viewer: Viewer, bounds: readonly number[]) {
@@ -60,8 +54,15 @@ export default function MapView({ trees, plan, visibleTrees, selectedTree, hover
     const cleanups: (() => void)[] = [];
     let stopped = false;
     try {
+      const contextLayer = new ImageryLayer(new UrlTemplateImageryProvider({
+        // GeoWebCache est en TMS : Cesium inverse l’axe Y avec {reverseY}.
+        url: "https://public.sig.rennesmetropole.fr/geowebcache/service/tms/1.0.0/ref_fonds%3Apvci_simple_gris@EPSG%3A3857@png/{z}/{x}/{reverseY}.png",
+        maximumLevel: 22,
+        credit: new Credit("© Rennes Métropole — Plan de ville simplifié gris"),
+      }));
+      contextLayer.alpha = 0.72;
       viewer = new Viewer(elementRef.current, {
-        animation: false, baseLayer: false, baseLayerPicker: false,
+        animation: false, baseLayer: contextLayer, baseLayerPicker: false,
         fullscreenButton: false, geocoder: false, homeButton: false, infoBox: false,
         navigationHelpButton: false, sceneModePicker: false, selectionIndicator: false, timeline: false,
         creditContainer: creditsRef.current, showRenderLoopErrors: false,
@@ -156,16 +157,6 @@ export default function MapView({ trees, plan, visibleTrees, selectedTree, hover
           });
           viewer.entities.add({ id: `${feature.id}-roof`, polygon: { hierarchy, material: roof, height: structureHeight + 0.03 } });
           viewer.entities.add({ id: `${feature.id}-roof-outline`, polyline: { positions: positions(outer, structureHeight + 0.06), width: 1.8, material: Color.fromCssColorString("#f7eddd") } });
-          viewer.entities.add({
-            id: `${feature.id}-label`, name: feature.properties.label,
-            position: centrePosition(outer, structureHeight + 1.5),
-            label: {
-              text: feature.properties.label, font: "600 13px DM Sans", style: LabelStyle.FILL_AND_OUTLINE,
-              fillColor: Color.fromCssColorString("#3c291f"), outlineColor: Color.WHITE, outlineWidth: 3,
-              horizontalOrigin: HorizontalOrigin.CENTER, verticalOrigin: VerticalOrigin.BOTTOM,
-              disableDepthTestDistance: Number.POSITIVE_INFINITY,
-            },
-          });
         } else if (feature.geometry.type === "Polygon") {
           const [outer, ...holes] = feature.geometry.coordinates;
           const outlinePositions = positions(outer);

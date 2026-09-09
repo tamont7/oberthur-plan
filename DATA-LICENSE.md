@@ -18,7 +18,10 @@ Le fichier [public/data/parc-oberthur.geojson](public/data/parc-oberthur.geojson
 - l’emprise de l’Hôtel Oberthür, issue des [géoservices RTGE de Rennes Métropole](https://public.sig.rennesmetropole.fr/header/geoservices) ;
 - les axes, le plan d’eau et le kiosque, issus d’[OpenStreetMap contributors](https://www.openstreetmap.org/copyright).
 
-Les deux sources et l’extrait dérivé sont sous **ODbL 1.0**. Attribution proposée : « Plan : Rennes Métropole — Espaces verts ; © OpenStreetMap contributors, ODbL 1.0 ». L’extraction est reproduite par `npm run data:plan` et aucune tuile de fond externe n’est utilisée à l’exécution.
+Les deux sources et l’extrait dérivé sont sous **ODbL 1.0**. Attribution proposée : « Plan : Rennes Métropole — Espaces verts ; © OpenStreetMap contributors, ODbL 1.0 ». L’extraction est reproduite par `npm run data:plan`.
+
+Le fond de contexte est le « Plan de ville simplifié gris » de Rennes Métropole, distribué publiquement par ses [géoservices](https://public.sig.rennesmetropole.fr/header/geoservices) ; son attribution reste visible sur la carte.
+
 
 ## Photos des repères
 
