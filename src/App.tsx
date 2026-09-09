@@ -91,57 +91,417 @@ class MapBoundary extends Component<{ children: ReactNode; onRetry: () => void }
   }
 }
 
-function TreeDetail({ tree, onClose }: { tree: Tree; onClose: () => void }) {
-  const headingRef = useRef<HTMLHeadingElement>(null);
-  const scientificName = tree.scientificName;
-  const [detailsOpen, setDetailsOpen] = useState(false);
-  const touchStartY = useRef<number | null>(null);
-  const [dragOffset, setDragOffset] = useState(0);
+function TreeDetail({
+  tree,
+  onClose,
+}: {
+  tree: Tree;
+  onClose: () => void;
+}) {
+  const headingRef =
+    useRef<HTMLHeadingElement>(
+      null,
+    );
+
+  const scientificName =
+    tree.scientificName;
+
+  const [
+    detailsOpen,
+    setDetailsOpen,
+  ] =
+    useState(false);
+
+  const touchStartY =
+    useRef<number | null>(
+      null,
+    );
+
+  const [
+    dragOffset,
+    setDragOffset,
+  ] =
+    useState(0);
+
+  /*
+   * Compatibilité pendant la transition :
+   * les propriétés seront typées directement
+   * dans data.ts juste après.
+   */
+  const measurements =
+    tree as Tree & {
+      crownDiameter?:
+      | number
+      | null;
+
+      firstLeafHeight?:
+      | number
+      | null;
+    };
+
   useEffect(() => {
-    const timer = window.setTimeout(() => headingRef.current?.focus(), 0);
-    return () => window.clearTimeout(timer);
+    const timer =
+      window.setTimeout(
+        () =>
+          headingRef.current?.focus(),
+        0,
+      );
+
+    return () =>
+      window.clearTimeout(
+        timer,
+      );
   }, [tree.id]);
-  useEffect(() => setDetailsOpen(false), [tree.id]);
-  const beginSwipe = (event: PointerEvent<HTMLElement>) => {
-    if (event.pointerType === "touch") touchStartY.current = event.clientY;
+
+  useEffect(
+    () =>
+      setDetailsOpen(
+        false,
+      ),
+    [tree.id],
+  );
+
+  const beginSwipe = (
+    event:
+      PointerEvent<HTMLElement>,
+  ) => {
+    if (
+      event.pointerType ===
+      "touch"
+    ) {
+      touchStartY.current =
+        event.clientY;
+    }
   };
-  const moveSwipe = (event: PointerEvent<HTMLElement>) => {
-    if (touchStartY.current !== null) setDragOffset(Math.max(0, event.clientY - touchStartY.current));
+
+  const moveSwipe = (
+    event:
+      PointerEvent<HTMLElement>,
+  ) => {
+    if (
+      touchStartY.current !==
+      null
+    ) {
+      setDragOffset(
+        Math.max(
+          0,
+          event.clientY -
+          touchStartY.current,
+        ),
+      );
+    }
   };
-  const endSwipe = () => {
-    if (dragOffset > 72) onClose();
-    touchStartY.current = null;
-    setDragOffset(0);
-  };
-  return <article className="tree-detail" aria-labelledby="detail-title" onPointerDown={beginSwipe} onPointerMove={moveSwipe} onPointerUp={endSwipe} onPointerCancel={endSwipe} style={{ transform: `translateY(${dragOffset}px)` }}>
-    <div className="detail-topline">
-      <h2 id="detail-title" ref={headingRef} tabIndex={-1}>{tree.name}</h2>
-      <button className="icon-button" onClick={onClose} aria-label="Fermer la fiche"><CloseIcon /></button>
-    </div>
-    <p className="tree-summary"><span>Hauteur</span><strong>{tree.height === null ? "Non renseignée" : `${tree.height} m`}</strong></p>
-    <button className="detail-toggle" onClick={() => setDetailsOpen((open) => !open)} aria-expanded={detailsOpen}><span>{detailsOpen ? "Réduire" : "Voir la fiche"}</span><span className="detail-toggle-mark" aria-hidden="true">{detailsOpen ? "−" : "+"}</span></button>
-    {detailsOpen && <div className="tree-detail-extra">
-      <p className="scientific-name">{scientificName ? <a href={`${WIKIPEDIA_SEARCH_URL}${encodeURIComponent(scientificName)}`} target="_blank" rel="noreferrer" aria-label={`Ouvrir le premier résultat Wikipédia pour ${scientificName}`} onClick={(event) => {
-        const tab = window.open(`${WIKIPEDIA_SEARCH_URL}${encodeURIComponent(scientificName)}`, "_blank");
-        if (!tab) return;
-        event.preventDefault();
-        tab.opener = null;
-        void resolveWikipediaArticle(tab, scientificName);
-      }}>{scientificName}<span aria-hidden="true"> ↗</span></a> : "Taxon non renseigné"}</p>
-      {tree.sourceName && tree.sourceName !== tree.name && <p className="source-name">Nom publié : {tree.sourceName}</p>}
-      <p className="tree-reference">Référence {tree.managementId ?? tree.sourceId}</p>
-      {tree.photoUrl && <img className="tree-photo" src={tree.photoUrl} alt={tree.name} loading="lazy" />}
-      {tree.description && <p className="detail-description">{tree.description}</p>}
-      <dl className="tree-facts">
-        <div><dt>Circonférence</dt><dd>{tree.circumference === null ? "Non renseignée" : `${tree.circumference} cm`}</dd></div>
-        <div><dt>Plantation</dt><dd>{dateLabel(tree.plantedAt)}</dd></div>
-        <div><dt>Type de taille</dt><dd>{tree.pruning ?? "Non renseigné"}</dd></div>
-        <div><dt>Remarquable</dt><dd>{tree.remarkable === null ? "Non renseigné" : tree.remarkable ? "Oui" : "Non"}</dd></div>
-        <div><dt>Mise à jour de la fiche source</dt><dd>{dateLabel(tree.updatedAt)}</dd></div>
-      </dl>
-      <p className="coordinates">GPS : {tree.latitude.toFixed(6)}, {tree.longitude.toFixed(6)}</p>
-    </div>}
-  </article>;
+
+  const endSwipe =
+    () => {
+      if (
+        dragOffset > 72
+      ) {
+        onClose();
+      }
+
+      touchStartY.current =
+        null;
+
+      setDragOffset(0);
+    };
+
+  return (
+    <article
+      className="tree-detail"
+      aria-labelledby="detail-title"
+      onPointerDown={
+        beginSwipe
+      }
+      onPointerMove={
+        moveSwipe
+      }
+      onPointerUp={
+        endSwipe
+      }
+      onPointerCancel={
+        endSwipe
+      }
+      style={{
+        transform:
+          `translateY(${dragOffset}px)`,
+      }}
+    >
+      <div className="detail-topline">
+        <h2
+          id="detail-title"
+          ref={headingRef}
+          tabIndex={-1}
+        >
+          {tree.name}
+        </h2>
+
+        <button
+          className="icon-button"
+          onClick={onClose}
+          aria-label="Fermer la fiche"
+        >
+          <CloseIcon />
+        </button>
+      </div>
+
+      <p className="tree-summary">
+        <span>
+          Hauteur
+        </span>
+
+        <strong>
+          {tree.height ===
+            null
+            ? "Non renseignée"
+            : `${tree.height} m`}
+        </strong>
+      </p>
+
+      <button
+        className="detail-toggle"
+        onClick={() =>
+          setDetailsOpen(
+            (open) =>
+              !open,
+          )
+        }
+        aria-expanded={
+          detailsOpen
+        }
+      >
+        <span>
+          {detailsOpen
+            ? "Réduire"
+            : "Voir la fiche"}
+        </span>
+
+        <span
+          className="detail-toggle-mark"
+          aria-hidden="true"
+        >
+          {detailsOpen
+            ? "−"
+            : "+"}
+        </span>
+      </button>
+
+      {detailsOpen && (
+        <div className="tree-detail-extra">
+          <p className="scientific-name">
+            {scientificName ? (
+              <a
+                href={`${WIKIPEDIA_SEARCH_URL}${encodeURIComponent(
+                  scientificName,
+                )}`}
+                target="_blank"
+                rel="noreferrer"
+                aria-label={`Ouvrir le premier résultat Wikipédia pour ${scientificName}`}
+                onClick={(
+                  event,
+                ) => {
+                  const tab =
+                    window.open(
+                      `${WIKIPEDIA_SEARCH_URL}${encodeURIComponent(
+                        scientificName,
+                      )}`,
+                      "_blank",
+                    );
+
+                  if (!tab) {
+                    return;
+                  }
+
+                  event.preventDefault();
+
+                  tab.opener =
+                    null;
+
+                  void resolveWikipediaArticle(
+                    tab,
+                    scientificName,
+                  );
+                }}
+              >
+                {scientificName}
+
+                <span
+                  aria-hidden="true"
+                >
+                  {" "}
+                  ↗
+                </span>
+              </a>
+            ) : (
+              "Taxon non renseigné"
+            )}
+          </p>
+
+          {tree.sourceName &&
+            tree.sourceName !==
+            tree.name && (
+              <p className="source-name">
+                Nom publié :{" "}
+                {
+                  tree.sourceName
+                }
+              </p>
+            )}
+
+          <p className="tree-reference">
+            Référence{" "}
+            {tree.managementId ??
+              tree.sourceId}
+          </p>
+
+          {tree.photoUrl && (
+            <img
+              className="tree-photo"
+              src={
+                tree.photoUrl
+              }
+              alt={tree.name}
+              loading="lazy"
+            />
+          )}
+
+          {tree.description && (
+            <p className="detail-description">
+              {
+                tree.description
+              }
+            </p>
+          )}
+
+          <dl className="tree-facts">
+            <div>
+              <dt>
+                Hauteur
+              </dt>
+
+              <dd>
+                {tree.height ===
+                  null
+                  ? "Non renseignée"
+                  : `${tree.height} m`}
+              </dd>
+            </div>
+
+            <div>
+              <dt>
+                Circonférence
+              </dt>
+
+              <dd>
+                {tree.circumference ===
+                  null
+                  ? "Non renseignée"
+                  : `${tree.circumference} cm`}
+              </dd>
+            </div>
+
+            <div>
+              <dt>
+                Diamètre du
+                houppier
+              </dt>
+
+              <dd>
+                {measurements
+                  .crownDiameter ===
+                  null ||
+                  measurements
+                    .crownDiameter ===
+                  undefined
+                  ? "Non renseigné"
+                  : `${measurements.crownDiameter} m`}
+              </dd>
+            </div>
+
+            <div>
+              <dt>
+                Hauteur de
+                première feuille
+              </dt>
+
+              <dd>
+                {measurements
+                  .firstLeafHeight ===
+                  null ||
+                  measurements
+                    .firstLeafHeight ===
+                  undefined
+                  ? "Non renseignée"
+                  : `${measurements.firstLeafHeight} m`}
+              </dd>
+            </div>
+
+            <div>
+              <dt>
+                Plantation
+              </dt>
+
+              <dd>
+                {dateLabel(
+                  tree.plantedAt,
+                )}
+              </dd>
+            </div>
+
+            <div>
+              <dt>
+                Type de taille
+              </dt>
+
+              <dd>
+                {tree.pruning ??
+                  "Non renseigné"}
+              </dd>
+            </div>
+
+            <div>
+              <dt>
+                Remarquable
+              </dt>
+
+              <dd>
+                {tree.remarkable ===
+                  null
+                  ? "Non renseigné"
+                  : tree.remarkable
+                    ? "Oui"
+                    : "Non"}
+              </dd>
+            </div>
+
+            <div>
+              <dt>
+                Mise à jour de
+                la fiche source
+              </dt>
+
+              <dd>
+                {dateLabel(
+                  tree.updatedAt,
+                )}
+              </dd>
+            </div>
+          </dl>
+
+          <p className="coordinates">
+            GPS :{" "}
+            {tree.latitude.toFixed(
+              6,
+            )}
+            ,{" "}
+            {tree.longitude.toFixed(
+              6,
+            )}
+          </p>
+        </div>
+      )}
+    </article>
+  );
 }
 
 function LandmarkDetail({ landmark, onClose }: { landmark: ParkLandmark; onClose: () => void }) {
@@ -439,9 +799,9 @@ export default function App() {
       </div>
       <div className="map-legend" aria-label="Légende de la carte">
         {planOnly ? <><span><i className="legend-line" /> Allées</span><span><i className="legend-water" /> Eau</span></> : <>
-        <span><i className="legend-dot" style={{ backgroundColor: TREE_COLORS.normal }} /> Arbre</span>
-        {remarkableKnown && <span><i className="legend-dot" style={{ backgroundColor: TREE_COLORS.remarkable }} /> Remarquable</span>}
-        <span><i className="legend-dot" style={{ backgroundColor: TREE_COLORS.selected }} /> {hasFilters ? "Filtre / sélection" : "Sélection"}</span>
+          <span><i className="legend-dot" style={{ backgroundColor: TREE_COLORS.normal }} /> Arbre</span>
+          {remarkableKnown && <span><i className="legend-dot" style={{ backgroundColor: TREE_COLORS.remarkable }} /> Remarquable</span>}
+          <span><i className="legend-dot" style={{ backgroundColor: TREE_COLORS.selected }} /> {hasFilters ? "Filtre / sélection" : "Sélection"}</span>
         </>}
       </div>
       {!planOnly && selectedTree && <TreeDetail tree={selectedTree} onClose={closeDetail} />}
