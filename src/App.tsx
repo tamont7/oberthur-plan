@@ -246,16 +246,17 @@ function TreeDetail({
       </div>
 
       <p className="tree-summary">
-        <span>
-          Hauteur
-        </span>
+        {tree.height != null && (
+          <>↕ {tree.height} m</>
+        )}
 
-        <strong>
-          {tree.height ===
-            null
-            ? "Non renseignée"
-            : `${tree.height} m`}
-        </strong>
+        {tree.circumference != null && (
+          <> · ⟳ {tree.circumference} cm</>
+        )}
+
+        {measurements.crownDiameter != null && (
+          <> · ⌀ {measurements.crownDiameter} m</>
+        )}
       </p>
 
       <button
