@@ -76,6 +76,19 @@ function SpeciesPicker({ options, selectedTaxon, sort, onSelect }: {
   </div>;
 }
 
+function TreeSortPicker({ sort, onChange }: { sort: TreeSort; onChange: (sort: TreeSort) => void }) {
+  const detailsRef = useRef<HTMLDetailsElement>(null);
+  const choose = (nextSort: TreeSort) => { onChange(nextSort); detailsRef.current?.removeAttribute("open"); };
+  return <details className="sort-picker" ref={detailsRef}>
+    <summary aria-label="Trier les arbres">
+      <span className="sort-picker-label">Trier par</span><span className="sort-picker-value">{treeSortLabel[sort]}</span><span className="species-picker-chevron" aria-hidden="true" />
+    </summary>
+    <div className="sort-picker-menu" role="group" aria-label="Choisir le tri">
+      {TREE_SORT_ORDER.map((option) => <button type="button" className={`sort-option ${option === sort ? "is-selected" : ""}`} key={option} onClick={() => choose(option)}>{treeSortLabel[option]}</button>)}
+    </div>
+  </details>;
+}
+
 function LeafIcon() {
   return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 4C12 4 6 7 5 13c-1 5 6 9 10 4 2-3 3-7 5-13Z" /><path d="M4 20 15 11" /></svg>;
 }
@@ -103,9 +116,11 @@ class MapBoundary extends Component<{ children: ReactNode; onRetry: () => void }
 function TreeDetail({
   tree,
   onClose,
+  isMobile,
 }: {
   tree: Tree;
   onClose: () => void;
+  isMobile: boolean;
 }) {
   const headingRef =
     useRef<HTMLHeadingElement>(
@@ -217,7 +232,7 @@ function TreeDetail({
 
   return (
     <article
-      className="tree-detail"
+      className={`tree-detail ${isMobile ? "is-mobile" : ""}`}
       aria-labelledby="detail-title"
       onPointerDown={
         beginSwipe
@@ -617,7 +632,7 @@ export default function App() {
     if (!dialog) return;
     if (mobilePanelOpen && !dialog.open) {
       dialog.showModal();
-      searchRef.current?.focus();
+      dialog.focus();
     } else if (!mobilePanelOpen && dialog.open) {
       dialog.close();
     }
@@ -778,12 +793,7 @@ export default function App() {
     </div>
     <div className="filters">
       <SpeciesPicker options={speciesOptions} selectedTaxon={selectedSpecies} sort={speciesSort} onSelect={chooseSpecies} />
-      <label className="sort-field">
-        <span>Trier par</span>
-        <select value={speciesSort} onChange={(event) => changeTreeSort(event.target.value as TreeSort)}>
-          {TREE_SORT_ORDER.map((sort) => <option key={sort} value={sort}>{treeSortLabel[sort]}</option>)}
-        </select>
-      </label>
+      <TreeSortPicker sort={speciesSort} onChange={changeTreeSort} />
     </div>
     <div className="results-heading">
       <p role="status">{data ? `${visibleTrees.length} / ${trees.length} arbres` : dataError ? "Données indisponibles" : "Chargement des arbres…"}</p>
@@ -838,9 +848,9 @@ export default function App() {
           <i className="park-choice-symbol thabor" aria-hidden="true" /><span>Thabor</span>
         </button>
       </div>
-      {!planOnly && selectedTree && <TreeDetail tree={selectedTree} onClose={closeDetail} />}
+      {!planOnly && selectedTree && <TreeDetail tree={selectedTree} onClose={closeDetail} isMobile={isMobile} />}
       {!planOnly && selectedLandmark && <LandmarkDetail landmark={selectedLandmark} onClose={closeLandmark} />}
-      {!planOnly && <button ref={listTriggerRef} className="mobile-list-trigger" onClick={() => setMobilePanelOpen(true)}
+      {!planOnly && <button ref={listTriggerRef} className={`mobile-list-trigger ${selectedTree ? "is-hidden" : ""}`} onClick={() => setMobilePanelOpen(true)}
         aria-haspopup="dialog" aria-expanded={mobilePanelOpen} aria-controls="mobile-explorer">
         {data ? `Explorer les ${visibleTrees.length} arbres` : "Ouvrir la liste"} <span aria-hidden="true">↑</span>
       </button>}
@@ -849,7 +859,7 @@ export default function App() {
       <p className="eyebrow">Plan préparé</p><h1>Parc du Thabor</h1>
       <p>Emprise officielle, allées et plans d’eau. Les bâtiments et l’inventaire d’arbres seront ajoutés plus tard.</p>
       <p className="thabor-source"><a href="https://data.rennesmetropole.fr/explore/dataset/espaces_verts/" target="_blank" rel="noreferrer">Rennes Métropole</a> · <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> · <a href={THABOR_PLAN_URL} download>GeoJSON</a> · ODbL 1.0</p>
-    </aside> : isMobile ? <dialog id="mobile-explorer" className="explorer-panel" ref={dialogRef} aria-label="Liste des arbres" style={{ transform: `translateY(${explorerDragOffset}px)` }}
+    </aside> : isMobile ? <dialog id="mobile-explorer" className="explorer-panel" ref={dialogRef} aria-label="Liste des arbres" tabIndex={-1} style={{ transform: `translateY(${explorerDragOffset}px)` }}
       onCancel={(event) => { event.preventDefault(); setMobilePanelOpen(false); }}
       onClose={() => setMobilePanelOpen(false)}><button type="button" className="mobile-panel-handle" aria-label="Fermer la liste des arbres" onClick={() => setMobilePanelOpen(false)}
         onPointerDown={beginExplorerSwipe} onPointerMove={moveExplorerSwipe} onPointerUp={endExplorerSwipe} onPointerCancel={endExplorerSwipe} />{explorer}</dialog>

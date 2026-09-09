@@ -767,6 +767,66 @@ export default function MapView(
     });
   }, [trees, focusTreeId, focusRequest, revision]);
 
+  /* Houppier temporairement rendu au premier plan lors d'un cadrage. */
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    const treeToFocus = focusTreeId ? trees.find((tree) => tree.id === focusTreeId) ?? null : null;
+    if (!viewer || !treeToFocus || focusRequest === 0) return;
+
+    const proportions = getTreeProportions(treeToFocus);
+    const shape = getTreeShape(treeToFocus);
+    const crownGeometry = shape === "conical"
+      ? new CylinderGeometry({ length: 1, topRadius: 0.07, bottomRadius: 1, slices: 10, vertexFormat: PerInstanceColorAppearance.VERTEX_FORMAT })
+      : new EllipsoidGeometry({ radii: new Cartesian3(1, 1, 1), vertexFormat: PerInstanceColorAppearance.VERTEX_FORMAT });
+    const crownCentre = proportions.trunkHeight + proportions.crownHeight / 2;
+    const focusCrown = viewer.scene.primitives.add(new Primitive({
+      geometryInstances: new GeometryInstance({
+        geometry: crownGeometry,
+        modelMatrix: makeTreeMatrix(
+          treeToFocus,
+          crownCentre,
+          proportions.crownRadiusX,
+          proportions.crownRadiusY,
+          shape === "conical" ? proportions.crownHeight : proportions.crownHeight / 2,
+        ),
+        attributes: { color: ColorGeometryInstanceAttribute.fromColor(TREE_SELECTED_COLOR) },
+      }),
+      appearance: new PerInstanceColorAppearance({
+        flat: true,
+        translucent: false,
+        closed: true,
+        renderState: { depthTest: { enabled: false } },
+      }),
+      asynchronous: false,
+      releaseGeometryInstances: true,
+    }));
+    viewer.scene.requestRender();
+
+    focusCrown.show = false;
+    let flashes = 0;
+    let removeTimer: number | undefined;
+    const flashTimer = window.setInterval(() => {
+      focusCrown.show = !focusCrown.show;
+      if (focusCrown.show) flashes += 1;
+      viewer.scene.requestRender();
+      if (flashes === 3) {
+        window.clearInterval(flashTimer);
+        removeTimer = window.setTimeout(() => {
+          if (!viewer.isDestroyed()) {
+            viewer.scene.primitives.remove(focusCrown);
+            viewer.scene.requestRender();
+          }
+        }, 180);
+      }
+    }, 180);
+
+    return () => {
+      window.clearInterval(flashTimer);
+      if (removeTimer !== undefined) window.clearTimeout(removeTimer);
+      if (!viewer.isDestroyed()) viewer.scene.primitives.remove(focusCrown);
+    };
+  }, [trees, focusTreeId, focusRequest, plan, revision]);
+
   /*
    * Viewer Cesium
    */

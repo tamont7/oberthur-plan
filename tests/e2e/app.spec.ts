@@ -72,7 +72,7 @@ test("panneau mobile modal, clavier et retour du focus", async ({ page, isMobile
   await expect(page.locator(".tree-list-item").first()).toBeAttached();
   await expect(page.getByRole("searchbox")).not.toBeVisible();
   await openExplorer(page, true);
-  await expect(page.getByRole("searchbox")).toBeFocused();
+  await expect(page.getByRole("dialog")).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).not.toBeVisible();
   await expect(page.getByRole("button", { name: /Explorer les/ })).toBeFocused();
