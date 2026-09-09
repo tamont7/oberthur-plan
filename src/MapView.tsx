@@ -102,6 +102,11 @@ function makeTreeTooltip(tree: Tree, count: number, x: number, y: number): MapTo
   };
 }
 
+function isInsideMapCanvas(viewer: Viewer, position: { x: number; y: number }) {
+  const { clientWidth, clientHeight } = viewer.scene.canvas;
+  return position.x >= 0 && position.y >= 0 && position.x < clientWidth && position.y < clientHeight;
+}
+
 function positions(
   coordinates: readonly (readonly number[])[],
   height = PLAN_HEIGHT,
@@ -1024,6 +1029,8 @@ export default function MapView(
         ) => {
           if (Date.now() - draggedAt < 400) return;
 
+          if (!isInsideMapCanvas(viewer!, event.position)) return;
+
           const picked =
             viewer?.scene.pick(
               event.position,
@@ -1076,6 +1083,12 @@ export default function MapView(
             ScreenSpaceEventHandler.MotionEvent,
         ) => {
           if (isMobileRef.current) {
+            setMapHoveredTreeId(null);
+            setTooltip(null);
+            return;
+          }
+
+          if (!isInsideMapCanvas(viewer!, event.endPosition)) {
             setMapHoveredTreeId(null);
             setTooltip(null);
             return;
