@@ -23,7 +23,7 @@ test("carte, crédits, filtres, fiche et recentrage", async ({ page, isMobile },
   }
   const total = await page.locator(".tree-list-item").count();
   expect(total).toBeGreaterThan(100);
-  await expect(page.getByRole("button", { name: "★ Remarquables" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "★ Remarquables" })).toHaveCount(0);
   const search = page.getByRole("searchbox");
   await search.fill("érable");
   const filtered = await page.locator(".tree-list-item").count();
@@ -40,8 +40,8 @@ test("carte, crédits, filtres, fiche et recentrage", async ({ page, isMobile },
   await expect(japaneseMaple).toBeVisible();
   await japaneseMaple.click();
   await expect(search).toHaveValue("Erable du Japon · Acer japonicum");
-  await page.getByRole("button", { name: "Trier les arbres et les espèces par nom scientifique" }).click();
-  await expect(page.getByRole("button", { name: "Trier les arbres et les espèces par nombre d’arbres" })).toBeVisible();
+  await page.getByLabel("Trier par").selectOption("scientific");
+  await expect(page.getByLabel("Trier par")).toHaveValue("scientific");
   await expect(search).toHaveValue("Acer japonicum · Erable du Japon");
   await expect(page.locator(".tree-list-item").first()).toContainText("Acer japonicum");
   await search.fill("aucun-arbre-xyz");

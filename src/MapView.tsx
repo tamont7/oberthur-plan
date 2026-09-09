@@ -1,15 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import {
+  BoundingSphere,
+  CallbackProperty,
   Cartesian3,
   Color,
   ColorGeometryInstanceAttribute,
-  Credit,
   CylinderGeometry,
   EllipsoidGeometry,
   GeometryInstance,
   HeadingPitchRange,
   HeadingPitchRoll,
-  ImageryLayer,
   Math as CesiumMath,
   Matrix4,
   PerInstanceColorAppearance,
@@ -21,12 +21,11 @@ import {
   ScreenSpaceEventType,
   Transforms,
   TranslationRotationScale,
-  UrlTemplateImageryProvider,
   Viewer,
 } from "cesium";
 
 import {
-  treeColor,
+  TREE_COLORS,
   treeHighlight,
   type Tree,
 } from "./data";
@@ -44,16 +43,12 @@ type MapViewProps = {
   plan: ParkPlan | null;
   visibleTrees: Tree[];
   selectedTree: Tree | null;
+  focusTreeId: string | null;
+  focusRequest: number;
   hoveredTreeId: string | null;
-  filtersActive: boolean;
   onSelectTree: (tree: Tree) => void;
   onSelectLandmark: (landmark: ParkLandmark) => void;
   recenter: number;
-};
-
-type TreeMeasurements = Tree & {
-  crownDiameter?: number | null;
-  firstLeafHeight?: number | null;
 };
 
 type TreeShape =
@@ -90,9 +85,19 @@ const TREE_SELECTED_COLOR =
   Color.fromCssColorString("#255bca");
 
 const TREE_HOVER_COLOR =
-  Color.fromCssColorString("#6fa4ff");
+  Color.fromCssColorString("#f2b84b");
 
-const FILTER_COLOR = "#255bca";
+function makeTreeTooltip(tree: Tree, count: number, x: number, y: number): MapTooltip {
+  return {
+    name: tree.name,
+    count,
+    height: tree.height,
+    circumference: tree.circumference,
+    crownDiameter: tree.crownDiameter,
+    x,
+    y,
+  };
+}
 
 function positions(
   coordinates: readonly (readonly number[])[],
@@ -177,9 +182,7 @@ function getTreeTrunkRadius(tree: Tree) {
 }
 
 function getTreeCrownDiameter(tree: Tree) {
-  const value =
-    (tree as TreeMeasurements)
-      .crownDiameter;
+  const value = tree.crownDiameter;
 
   if (
     value !== null &&
@@ -201,9 +204,7 @@ function getTreeFirstLeafHeight(tree: Tree) {
   const height =
     getTreeHeight(tree);
 
-  const value =
-    (tree as TreeMeasurements)
-      .firstLeafHeight;
+  const value = tree.firstLeafHeight;
 
   if (
     value !== null &&
@@ -402,16 +403,18 @@ function varyColor(
 function getBaseCrownColor(tree: Tree) {
   return varyColor(
     tree,
-    treeColor(tree, false),
+    TREE_COLORS.normal,
   );
 }
 
-function getFilteredCrownColor(
+function getRelatedCrownColor(
   tree: Tree,
 ) {
-  return varyColor(
-    tree,
-    FILTER_COLOR,
+  return Color.lerp(
+    getBaseCrownColor(tree),
+    TREE_HOVER_COLOR,
+    0.72,
+    new Color(),
   );
 }
 
@@ -622,8 +625,9 @@ export default function MapView(
   const {
     plan,
     selectedTree,
+    focusTreeId,
+    focusRequest,
     hoveredTreeId,
-    filtersActive,
     onSelectTree,
     onSelectLandmark,
     recenter,
@@ -724,6 +728,30 @@ export default function MapView(
     onSelectLandmark,
   ]);
 
+  /* Centre le cadrage uniquement via le bouton ⌖ de la liste. */
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    const treeToFocus = focusTreeId ? trees.find((tree) => tree.id === focusTreeId) ?? null : null;
+    if (!viewer || !treeToFocus) return;
+
+    const proportions = getTreeProportions(treeToFocus);
+    const radius = Math.max(proportions.crownRadiusX, proportions.crownRadiusY, 7);
+    const centre = Cartesian3.fromDegrees(
+      treeToFocus.longitude,
+      treeToFocus.latitude,
+      proportions.trunkHeight + proportions.crownHeight / 2,
+    );
+
+    viewer.camera.flyToBoundingSphere(new BoundingSphere(centre, radius), {
+      duration: 0.55,
+      offset: new HeadingPitchRange(
+        CesiumMath.toRadians(6),
+        CesiumMath.toRadians(-66),
+        Math.max(55, radius * 4.5),
+      ),
+    });
+  }, [trees, focusTreeId, focusRequest, revision]);
+
   /*
    * Viewer Cesium
    */
@@ -752,33 +780,13 @@ export default function MapView(
     let stopped = false;
 
     try {
-      const contextLayer =
-        new ImageryLayer(
-          new UrlTemplateImageryProvider({
-            url:
-              "https://public.sig.rennesmetropole.fr/" +
-              "geowebcache/service/tms/1.0.0/" +
-              "ref_fonds%3Apvci_simple_gris@" +
-              "EPSG%3A3857@png/{z}/{x}/{reverseY}.png",
-
-            maximumLevel: 22,
-
-            credit: new Credit(
-              "© Rennes Métropole — Plan de ville simplifié gris",
-            ),
-          }),
-        );
-
-      contextLayer.alpha =
-        0.72;
-
       viewer =
         new Viewer(
           elementRef.current,
           {
             animation: false,
-            baseLayer:
-              contextLayer,
+            /* Le fond SIG Rennes Métropole est désactivé par défaut. */
+            baseLayer: false,
             baseLayerPicker:
               false,
             fullscreenButton:
@@ -998,24 +1006,12 @@ export default function MapView(
           );
 
           if (tree) {
-            const measurements =
-              tree as TreeMeasurements;
-
-            setTooltip({
-              name: tree.name,
-
-              count: treesRef.current.filter(
-                (item) => item.species === tree.species,
-              ).length,
-
-              height: tree.height,
-              circumference: tree.circumference,
-              crownDiameter:
-                measurements.crownDiameter ?? null,
-
-              x: event.endPosition.x,
-              y: event.endPosition.y,
-            });
+            setTooltip(makeTreeTooltip(
+              tree,
+              treesRef.current.filter((item) => item.species === tree.species).length,
+              event.endPosition.x,
+              event.endPosition.y,
+            ));
 
             return;
           }
@@ -1901,25 +1897,12 @@ export default function MapView(
             "same_species"
           ) {
             /*
-             * Même espèce :
-             * bleu, mais variations
-             * conservées.
+             * Même taxon : une version
+             * plus discrète de l'ambre
+             * de l'arbre survolé.
              */
             color =
-              getFilteredCrownColor(
-                tree,
-              );
-          } else if (
-            filtersActive
-          ) {
-            /*
-             * Un filtre actif conserve
-             * des différences entre les
-             * arbres au lieu de tous les
-             * rendre exactement bleus.
-             */
-            color =
-              getFilteredCrownColor(
+              getRelatedCrownColor(
                 tree,
               );
           }
@@ -1995,9 +1978,56 @@ export default function MapView(
     selectedTree,
     hoveredTreeId,
     mapHoveredTreeId,
-    filtersActive,
     revision,
   ]);
+
+  /*
+   * Repère animé lors du survol depuis la liste :
+   * la couronne devient ambrée et cette impulsion
+   * matérialise rapidement son emprise au sol.
+   */
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    if (!viewer) return;
+
+    viewer.entities.removeById("tree-hover-pulse");
+
+    const activeHoveredTreeId = hoveredTreeId ?? mapHoveredTreeId;
+    const hoveredTree = trees.find((tree) => tree.id === activeHoveredTreeId);
+    if (!hoveredTree) {
+      viewer.scene.requestRender();
+      return;
+    }
+
+    const proportions = getTreeProportions(hoveredTree);
+    const crownRadius = Math.max(proportions.crownRadiusX, proportions.crownRadiusY);
+    const pulseRadius = new CallbackProperty(() => {
+      const phase = (Math.sin(Date.now() / 120) + 1) / 2;
+      return crownRadius * (1.08 + phase * 0.28);
+    }, false);
+
+    viewer.entities.add({
+      id: "tree-hover-pulse",
+      position: Cartesian3.fromDegrees(hoveredTree.longitude, hoveredTree.latitude, PLAN_HEIGHT + 0.08),
+      ellipse: {
+        semiMajorAxis: pulseRadius,
+        semiMinorAxis: pulseRadius,
+        height: PLAN_HEIGHT + 0.08,
+        material: Color.fromCssColorString("#f2b84b").withAlpha(0.18),
+        outline: true,
+        outlineColor: Color.fromCssColorString("#f2b84b"),
+      },
+    });
+
+    const renderTimer = window.setInterval(() => viewer.scene.requestRender(), 50);
+    return () => {
+      window.clearInterval(renderTimer);
+      if (!viewer.isDestroyed()) {
+        viewer.entities.removeById("tree-hover-pulse");
+        viewer.scene.requestRender();
+      }
+    };
+  }, [trees, hoveredTreeId, mapHoveredTreeId, plan, revision]);
 
   /*
    * Recentrage quand le plan change.

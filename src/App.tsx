@@ -1,5 +1,5 @@
 import { Component, lazy, Suspense, useEffect, useMemo, useRef, useState, type PointerEvent, type ReactNode } from "react";
-import { filterTrees, normalizeSearch, parseTreeData, treeColor, TREE_COLORS, type Tree, type TreeData } from "./data";
+import { filterTrees, normalizeSearch, parseTreeData, TREE_COLORS, type Tree, type TreeData } from "./data";
 import { PARK_PLAN_SOURCE_URL, SOURCE_URL } from "./park";
 import { parseParkPlan, type ParkLandmark, type ParkPlan } from "./plan";
 
@@ -10,15 +10,23 @@ const EMPTY_TREES: Tree[] = [];
 type ParkView = "oberthur" | "thabor";
 const WIKIPEDIA_SEARCH_URL = "https://fr.wikipedia.org/w/index.php?search=";
 const WIKIPEDIA_API_URL = "https://fr.wikipedia.org/w/api.php?action=query&list=search&srlimit=1&format=json&origin=*&srsearch=";
-type SpeciesSort = "vernacular" | "scientific" | "count";
+type TreeSort = "vernacular" | "scientific" | "count" | "height" | "crown";
 type SpeciesOption = { taxon: string; vernacularName: string; count: number };
 
-const speciesSortLabel: Record<SpeciesSort, string> = {
+const treeSortLabel: Record<TreeSort, string> = {
   vernacular: "nom usuel", scientific: "nom scientifique", count: "nombre d’arbres",
+  height: "hauteur", crown: "houppier",
 };
+const TREE_SORT_ORDER: TreeSort[] = ["vernacular", "scientific", "count", "height", "crown"];
 
-function speciesOptionLabel({ taxon, vernacularName }: SpeciesOption, sort: SpeciesSort) {
+function speciesOptionLabel({ taxon, vernacularName }: SpeciesOption, sort: TreeSort) {
   return sort === "scientific" ? `${taxon} · ${vernacularName}` : `${vernacularName} · ${taxon}`;
+}
+
+function compareOptionalMeasurements(a: number | null, b: number | null) {
+  if (a === null) return b === null ? 0 : 1;
+  if (b === null) return -1;
+  return b - a;
 }
 
 function wikipediaArticleUrl(title: string) {
@@ -37,14 +45,14 @@ async function resolveWikipediaArticle(tab: Window, scientificName: string) {
   }
 }
 
-function SpeciesName({ option, sort }: { option: SpeciesOption; sort: SpeciesSort }) {
+function SpeciesName({ option, sort }: { option: SpeciesOption; sort: TreeSort }) {
   const primary = sort === "scientific" ? option.taxon : option.vernacularName;
   const secondary = sort === "scientific" ? option.vernacularName : option.taxon;
   return <span className="species-option-content"><span className="species-option-copy"><span className="species-option-primary">{primary}</span><span className="species-option-secondary">{secondary}</span></span><span className="species-option-count">{option.count} {option.count > 1 ? "arbres" : "arbre"}</span></span>;
 }
 
 function SpeciesPicker({ options, selectedTaxon, sort, onSelect }: {
-  options: SpeciesOption[]; selectedTaxon: string; sort: SpeciesSort; onSelect: (taxon: string) => void;
+  options: SpeciesOption[]; selectedTaxon: string; sort: TreeSort; onSelect: (taxon: string) => void;
 }) {
   const detailsRef = useRef<HTMLDetailsElement>(null);
   const selectedOption = options.find((option) => option.taxon === selectedTaxon);
@@ -535,11 +543,12 @@ export default function App() {
   const [activePark, setActivePark] = useState<ParkView>(() => new URLSearchParams(window.location.search).get("plan") === "thabor" ? "thabor" : "oberthur");
   const [query, setQuery] = useState("");
   const [selectedSpecies, setSelectedSpecies] = useState("");
-  const [speciesSort, setSpeciesSort] = useState<SpeciesSort>("vernacular");
+  const [speciesSort, setSpeciesSort] = useState<TreeSort>("vernacular");
   const [searchSuggestionsOpen, setSearchSuggestionsOpen] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
-  const [remarkableOnly, setRemarkableOnly] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [focusTreeId, setFocusTreeId] = useState<string | null>(null);
+  const [focusRequest, setFocusRequest] = useState(0);
   const [selectedLandmark, setSelectedLandmark] = useState<ParkLandmark | null>(null);
   const [hoveredTreeId, setHoveredTreeId] = useState<string | null>(null);
   const [recenter, setRecenter] = useState(0);
@@ -633,13 +642,21 @@ export default function App() {
     return [...speciesStats].map(([taxon, { vernacularName, count }]) => ({ taxon, vernacularName, count }))
       .sort((a, b) => {
         if (speciesSort === "count") return b.count - a.count || a.vernacularName.localeCompare(b.vernacularName, "fr") || a.taxon.localeCompare(b.taxon, "fr");
-        const primary = speciesSort === "vernacular" ? a.vernacularName.localeCompare(b.vernacularName, "fr") : a.taxon.localeCompare(b.taxon, "fr");
-        return primary || (speciesSort === "vernacular" ? a.taxon.localeCompare(b.taxon, "fr") : a.vernacularName.localeCompare(b.vernacularName, "fr"));
+        const scientificFirst = speciesSort === "scientific";
+        const primary = scientificFirst ? a.taxon.localeCompare(b.taxon, "fr") : a.vernacularName.localeCompare(b.vernacularName, "fr");
+        return primary || (scientificFirst ? a.vernacularName.localeCompare(b.vernacularName, "fr") : a.taxon.localeCompare(b.taxon, "fr"));
       });
   }, [speciesStats, speciesSort]);
-  const remarkableKnown = trees.some((tree) => tree.remarkable !== null);
-  const filteredTrees = useMemo(() => filterTrees(trees, query, selectedSpecies, remarkableOnly), [trees, query, selectedSpecies, remarkableOnly]);
+  const filteredTrees = useMemo(() => filterTrees(trees, query, selectedSpecies, false), [trees, query, selectedSpecies]);
   const visibleTrees = useMemo(() => [...filteredTrees].sort((a, b) => {
+    if (speciesSort === "height") {
+      const difference = compareOptionalMeasurements(a.height, b.height);
+      if (difference) return difference;
+    }
+    if (speciesSort === "crown") {
+      const difference = compareOptionalMeasurements(a.crownDiameter, b.crownDiameter);
+      if (difference) return difference;
+    }
     if (speciesSort === "count") {
       const countDifference = (speciesStats.get(b.species)?.count ?? 0) - (speciesStats.get(a.species)?.count ?? 0);
       if (countDifference) return countDifference;
@@ -686,7 +703,8 @@ export default function App() {
     return () => window.removeEventListener("keydown", closeOnEscape);
   }, [selectedId, selectedLandmark, mobilePanelOpen, isMobile]);
 
-  const chooseTree = (tree: Tree) => { setSelectedId(tree.id); setSelectedLandmark(null); setMobilePanelOpen(false); };
+  const chooseTree = (tree: Tree) => { setFocusTreeId(null); setSelectedId(tree.id); setSelectedLandmark(null); setMobilePanelOpen(false); };
+  const focusTree = (tree: Tree) => { setFocusTreeId(tree.id); setFocusRequest((request) => request + 1); };
   const chooseLandmark = (landmark: ParkLandmark) => { setSelectedLandmark(landmark); setSelectedId(null); setMobilePanelOpen(false); };
   const updateSearch = (value: string) => {
     setQuery(value);
@@ -705,13 +723,12 @@ export default function App() {
     setSearchSuggestionsOpen(false);
     searchRef.current?.focus();
   };
-  const toggleSpeciesSort = () => {
-    const nextSort: SpeciesSort = speciesSort === "vernacular" ? "scientific" : speciesSort === "scientific" ? "count" : "vernacular";
+  const changeTreeSort = (nextSort: TreeSort) => {
     setSpeciesSort(nextSort);
     const option = speciesOptions.find((item) => item.taxon === selectedSpecies);
     if (option) setQuery(speciesOptionLabel(option, nextSort));
   };
-  const clearFilters = () => { clearSearch(); setRemarkableOnly(false); };
+  const clearFilters = () => { clearSearch(); setSpeciesSort("vernacular"); };
   const returnToPark = () => { setSelectedId(null); setSelectedLandmark(null); setRecenter((value) => value + 1); };
   const changePark = (nextPark: ParkView) => {
     if (nextPark === activePark) return;
@@ -735,7 +752,7 @@ export default function App() {
     explorerTouchStartY.current = null;
     setExplorerDragOffset(0);
   };
-  const hasFilters = Boolean(query || remarkableOnly);
+  const hasFilters = Boolean(query || speciesSort !== "vernacular");
 
   const explorer = <>
     <div className="search-combobox">
@@ -753,10 +770,12 @@ export default function App() {
     </div>
     <div className="filters">
       <SpeciesPicker options={speciesOptions} selectedTaxon={selectedSpecies} sort={speciesSort} onSelect={chooseSpecies} />
-      <button className="filter-chip" onClick={toggleSpeciesSort}
-        aria-label={`Trier les arbres et les espèces par ${speciesSortLabel[speciesSort === "vernacular" ? "scientific" : speciesSort === "scientific" ? "count" : "vernacular"]}`}>↕ Tri : {speciesSortLabel[speciesSort]}</button>
-      <button className={`filter-chip ${remarkableOnly ? "is-active" : ""}`} disabled={!remarkableKnown}
-        onClick={() => setRemarkableOnly((current) => !current)} aria-pressed={remarkableOnly}>★ Remarquables</button>
+      <label className="sort-field">
+        <span>Trier par</span>
+        <select value={speciesSort} onChange={(event) => changeTreeSort(event.target.value as TreeSort)}>
+          {TREE_SORT_ORDER.map((sort) => <option key={sort} value={sort}>{treeSortLabel[sort]}</option>)}
+        </select>
+      </label>
     </div>
     <div className="results-heading">
       <p role="status">{data ? `${visibleTrees.length} / ${trees.length} arbres` : dataError ? "Données indisponibles" : "Chargement des arbres…"}</p>
@@ -767,12 +786,22 @@ export default function App() {
         <p>Les données n’ont pas pu être chargées.</p>
         <button onClick={() => setDataAttempt((value) => value + 1)}>Réessayer les données</button>
       </div> : !data ? <p className="empty-state">Lecture de l’inventaire…</p> : visibleTrees.length ? visibleTrees.map((tree) => (
-        <button key={tree.id} data-tree-id={tree.id} className={`tree-list-item ${tree.id === selectedId ? "is-selected" : ""}`}
-          aria-pressed={tree.id === selectedId} onMouseEnter={() => setHoveredTreeId(tree.id)} onMouseLeave={() => setHoveredTreeId(null)} onFocus={() => setHoveredTreeId(tree.id)} onBlur={() => setHoveredTreeId(null)} onClick={() => chooseTree(tree)}>
-          <span className="tree-dot" style={{ backgroundColor: treeColor(tree, tree.id === selectedId) }} aria-hidden="true" />
-          <span className="tree-list-copy"><strong>{tree.name}</strong><span>{tree.scientificName ?? "Taxon non renseigné"}</span></span>
-          {tree.remarkable === true && <span className="remarkable-star" aria-label="Remarquable">★</span>}
-        </button>
+        <div key={tree.id} className="tree-list-row" onMouseEnter={() => setHoveredTreeId(tree.id)} onMouseLeave={() => setHoveredTreeId(null)}>
+          <button data-tree-id={tree.id} className={`tree-list-item ${tree.id === selectedId ? "is-selected" : ""}`}
+            aria-pressed={tree.id === selectedId} onFocus={() => setHoveredTreeId(tree.id)} onBlur={() => setHoveredTreeId(null)} onClick={() => chooseTree(tree)}>
+          <span className="tree-dot" style={{ backgroundColor: tree.id === selectedId ? TREE_COLORS.selected : TREE_COLORS.normal }} aria-hidden="true" />
+          <span className="tree-list-copy">
+            <strong>{tree.name}</strong>
+            <span>{tree.scientificName ?? "Taxon non renseigné"}</span>
+            {(tree.height != null || tree.circumference != null || tree.crownDiameter != null) && <span className="tree-list-measurements">
+              {tree.height != null && <>↕ {tree.height} m</>}
+              {tree.circumference != null && <>{tree.height != null && " · "}⟳ {tree.circumference} cm</>}
+              {tree.crownDiameter != null && <>{(tree.height != null || tree.circumference != null) && " · "}⌀ {tree.crownDiameter} m</>}
+            </span>}
+          </span>
+          </button>
+          <button type="button" className="focus-tree-button" onFocus={() => setHoveredTreeId(tree.id)} onBlur={() => setHoveredTreeId(null)} onClick={() => focusTree(tree)} aria-label={`Centrer la carte sur ${tree.name}`}>⌖</button>
+        </div>
       )) : <div className="empty-state"><LeafIcon /><p>Aucun arbre ne correspond à ces critères.</p><button className="text-button" onClick={clearFilters}>Effacer les filtres</button></div>}
     </div>
     <footer className="panel-footer">
@@ -784,7 +813,7 @@ export default function App() {
     <section className="map-area" aria-label="Carte et fiche arbre">
       <MapBoundary key={mapAttempt} onRetry={() => setMapAttempt((value) => value + 1)}>
         <Suspense fallback={<div className="map-notice" role="status">Chargement de la carte…</div>}>
-          <MapView trees={planOnly ? EMPTY_TREES : trees} plan={plan} visibleTrees={planOnly ? EMPTY_TREES : visibleTrees} selectedTree={planOnly ? null : selectedTree} hoveredTreeId={planOnly ? null : hoveredTreeId} filtersActive={!planOnly && hasFilters} onSelectTree={chooseTree} onSelectLandmark={chooseLandmark} recenter={recenter} />
+          <MapView trees={planOnly ? EMPTY_TREES : trees} plan={plan} visibleTrees={planOnly ? EMPTY_TREES : visibleTrees} selectedTree={planOnly ? null : selectedTree} focusTreeId={planOnly ? null : focusTreeId} focusRequest={focusRequest} hoveredTreeId={planOnly ? null : hoveredTreeId} onSelectTree={chooseTree} onSelectLandmark={chooseLandmark} recenter={recenter} />
         </Suspense>
       </MapBoundary>
       <header className="map-header">
@@ -801,7 +830,6 @@ export default function App() {
       <div className="map-legend" aria-label="Légende de la carte">
         {planOnly ? <><span><i className="legend-line" /> Allées</span><span><i className="legend-water" /> Eau</span></> : <>
           <span><i className="legend-dot" style={{ backgroundColor: TREE_COLORS.normal }} /> Arbre</span>
-          {remarkableKnown && <span><i className="legend-dot" style={{ backgroundColor: TREE_COLORS.remarkable }} /> Remarquable</span>}
           <span><i className="legend-dot" style={{ backgroundColor: TREE_COLORS.selected }} /> {hasFilters ? "Filtre / sélection" : "Sélection"}</span>
         </>}
       </div>
