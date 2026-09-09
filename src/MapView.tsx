@@ -85,7 +85,7 @@ const TREE_TRUNK_COLOR =
   Color.fromCssColorString("#735039");
 
 const TREE_SELECTED_COLOR =
-  Color.fromCssColorString("#255bca");
+  Color.fromCssColorString("#d99020");
 
 const TREE_HOVER_COLOR =
   Color.fromCssColorString("#f2b84b");
@@ -1075,16 +1075,6 @@ export default function MapView(
           event:
             ScreenSpaceEventHandler.MotionEvent,
         ) => {
-          if (
-            dragStart &&
-            Math.hypot(
-              event.endPosition.x - dragStart.x,
-              event.endPosition.y - dragStart.y,
-            ) > 24
-          ) {
-            draggedAt = Date.now();
-          }
-
           if (isMobileRef.current) {
             setMapHoveredTreeId(null);
             setTooltip(null);

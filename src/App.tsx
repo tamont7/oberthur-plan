@@ -836,7 +836,7 @@ export default function App() {
     <section className="map-area" aria-label="Carte et fiche arbre">
       <MapBoundary key={mapAttempt} onRetry={() => setMapAttempt((value) => value + 1)}>
         <Suspense fallback={<div className="map-notice" role="status">Chargement de la carte…</div>}>
-          <MapView trees={planOnly ? EMPTY_TREES : trees} plan={plan} visibleTrees={planOnly ? EMPTY_TREES : visibleTrees} selectedTree={planOnly ? null : selectedTree} focusTreeId={planOnly ? null : focusTreeId} focusRequest={focusRequest} viewMode={mapViewMode} onChangeViewMode={() => setMapViewMode((mode) => mode === "3d" ? "2d" : "3d")} hoveredTreeId={planOnly ? null : hoveredTreeId} onSelectTree={chooseTree} onSelectLandmark={chooseLandmark} recenter={recenter} />
+          <MapView trees={planOnly ? EMPTY_TREES : trees} plan={plan} visibleTrees={planOnly ? EMPTY_TREES : visibleTrees} selectedTree={planOnly ? null : selectedTree} focusTreeId={planOnly ? null : focusTreeId} focusRequest={focusRequest} viewMode={mapViewMode} onChangeViewMode={() => setMapViewMode((mode) => mode === "3d" ? "2d" : "3d")} isMobile={isMobile} hoveredTreeId={planOnly ? null : hoveredTreeId} onSelectTree={chooseTree} onSelectLandmark={chooseLandmark} recenter={recenter} />
         </Suspense>
       </MapBoundary>
       <header className="map-header">

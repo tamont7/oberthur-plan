@@ -89,7 +89,7 @@ h1 { margin-bottom: 0; color: #17372c; font-family: "Fraunces", Georgia, serif; 
 .tree-list-item:hover, .tree-list-item:focus-visible { background: #e6f1e8; box-shadow: inset 3px 0 #2f8b62, 0 2px 8px rgba(20, 50, 38, .07); transform: translateX(2px); }
 .tree-list-item:hover .tree-dot, .tree-list-item:focus-visible .tree-dot { box-shadow: 0 0 0 3px rgba(47, 139, 98, .17); }
 .tree-list-item.is-selected { background: #e7f1e9; }
-.tree-list-item.is-selected:hover, .tree-list-item.is-selected:focus-visible { box-shadow: inset 3px 0 #255bca, 0 2px 8px rgba(20, 50, 38, .07); }
+.tree-list-item.is-selected:hover, .tree-list-item.is-selected:focus-visible { box-shadow: inset 3px 0 #d99020, 0 2px 8px rgba(20, 50, 38, .07); }
 .focus-tree-button { display: grid; place-items: center; align-self: center; flex: 0 0 auto; width: 34px; height: 34px; border: 0; border-radius: 7px; padding: 0; color: #477463; background: transparent; font-size: 17px; line-height: 1; }
 .focus-tree-button:hover, .focus-tree-button:focus-visible { color: #fff; background: #2f7657; }
 .tree-list-copy { display: grid; gap: 2px; min-width: 0; }

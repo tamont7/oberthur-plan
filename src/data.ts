@@ -258,7 +258,7 @@ export const TREE_COLORS = {
     "#d99020",
 
   selected:
-    "#255bca",
+    "#d99020",
 };
 
 export function treeColor(
