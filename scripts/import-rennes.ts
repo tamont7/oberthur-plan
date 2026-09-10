@@ -14,10 +14,16 @@ import { z } from "zod";
 
 import {
   API_URL,
-  PARK_BOUNDS,
+  PARK_PLAN_BOUNDS,
+  PARK_PLAN_SOURCE_URL,
   SOURCE_URL,
   isInsideParkBounds,
 } from "../src/park";
+
+import {
+  isPointInParkGeometry,
+  type PlanPosition,
+} from "../src/plan";
 
 import {
   preferredCommonName,
@@ -25,8 +31,8 @@ import {
 
 import {
   createTreeFeatureSchema,
-  treeCollectionSchema,
   treeFeatureSchema,
+  createTreeCollectionSchema,
 } from "../src/treeSchema";
 
 /* -------------------------------------------------------------------------- */
@@ -127,6 +133,19 @@ const recordSchema =
         z.string().nullable(),
     })
     .passthrough();
+
+const officialParkSchema = z.object({
+  gml_id: z.string().min(1),
+  nom: z.literal("Parc Hamelin Oberthür"),
+  geo_shape: z.object({
+    geometry: z.object({
+      type: z.literal("MultiPolygon"),
+      coordinates: z.array(z.array(z.array(z.tuple([z.number().finite(), z.number().finite()])).min(4)).min(1)).min(1),
+    }),
+  }),
+});
+
+const PARK_API_URL = "https://data.rennesmetropole.fr/api/explore/v2.1/catalog/datasets/espaces_verts";
 
 /* -------------------------------------------------------------------------- */
 /*                              NORMALISATION                                 */
@@ -359,7 +378,7 @@ const [
   east,
   north,
 ] =
-  PARK_BOUNDS;
+  PARK_PLAN_BOUNDS;
 
 export const WHERE =
   `within(geo_shape, geom'POLYGON((` +
@@ -402,6 +421,13 @@ async function getJson(
 /* -------------------------------------------------------------------------- */
 
 export async function importRennes() {
+  const parkQuery = new URL(`${PARK_API_URL}/records`);
+  parkQuery.searchParams.set("where", "nom = 'Parc Hamelin Oberthür'");
+  parkQuery.searchParams.set("limit", "2");
+  const [sourceMetadata, officialParkValue] = await Promise.all([
+    getJson(API_URL),
+    getJson(parkQuery),
+  ]);
   const metadata =
     z
       .object({
@@ -431,12 +457,15 @@ export async function importRennes() {
           }),
       })
       .parse(
-        await getJson(
-          API_URL,
-        ),
+        sourceMetadata,
       )
       .metas
       .default;
+
+  const officialParks = z.object({ results: z.array(officialParkSchema) }).parse(officialParkValue).results;
+  if (officialParks.length !== 1) throw new Error("Emprise officielle du Parc Hamelin Oberthür introuvable ou ambiguë.");
+  const officialPark = officialParks[0];
+  const containsPoint = (longitude: number, latitude: number) => isPointInParkGeometry(officialPark.geo_shape.geometry.coordinates, [longitude, latitude] as PlanPosition);
 
   if (
     metadata.license !==
@@ -555,9 +584,14 @@ export async function importRennes() {
     );
   }
 
+  const insideRecords = records.filter((record) => {
+    const [longitude, latitude] = z.object({ geo_shape: z.object({ geometry: z.object({ type: z.literal("Point"), coordinates: z.tuple([z.number().finite(), z.number().finite()]) }) }) }).parse(record).geo_shape.geometry.coordinates;
+    return containsPoint(longitude, latitude);
+  });
+
   const normalized =
-    records.map(
-      (record) => normalizeRecord(record),
+    insideRecords.map(
+      (record) => normalizeRecord(record, containsPoint),
     );
 
   const features =
@@ -571,13 +605,13 @@ export async function importRennes() {
     );
 
   const collection =
-    treeCollectionSchema.parse(
+    createTreeCollectionSchema(containsPoint).parse(
       {
         type:
           "FeatureCollection",
 
         bbox:
-          PARK_BOUNDS,
+          PARK_PLAN_BOUNDS,
 
         metadata: {
           schema_version:
@@ -608,7 +642,7 @@ export async function importRennes() {
             metadata.data_processed,
 
           selection:
-            "Emprise GPS fournie ; abattu=1 exclu.",
+            "Points GPS situés dans l’emprise officielle du Parc Hamelin Oberthür ; abattu=1 exclu.",
 
           query_url:
             queryUrl,
@@ -622,6 +656,15 @@ export async function importRennes() {
                 item.reason ===
                 "felled",
             ).length,
+
+          excluded_outside_park:
+            records.length - insideRecords.length,
+
+          boundary_source_url:
+            PARK_PLAN_SOURCE_URL,
+
+          boundary_source_id:
+            officialPark.gml_id,
 
           imported_records:
             features.length,

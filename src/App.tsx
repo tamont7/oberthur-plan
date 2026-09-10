@@ -522,7 +522,7 @@ export default function App() {
     Promise.all([treeData, parkPlan])
       .then(([trees, nextPlan]) => {
         if (!controller.signal.aborted) {
-          setData(parseTreeData(trees, activePark === "thabor" ? (longitude, latitude) => isPointInPark(nextPlan, [longitude, latitude]) : undefined));
+          setData(parseTreeData(trees, (longitude, latitude) => isPointInPark(nextPlan, [longitude, latitude])));
           setPlan(nextPlan);
         }
       })
@@ -822,7 +822,7 @@ export default function App() {
         <div><dt>Version</dt><dd>V1.4 · Rennes Métropole</dd></div>
         <div><dt>Inventaire</dt><dd><a href={SOURCE_URL} target="_blank" rel="noreferrer">Rennes Métropole</a> · <a href="https://opendatacommons.org/licenses/odbl/1-0/" target="_blank" rel="noreferrer">ODbL 1.0</a></dd></div>
         {data && <div><dt>Extrait</dt><dd>{dateLabel(data.metadata.imported_at)} · <a href={treeDataUrl} download>GeoJSON</a></dd></div>}
-        <div><dt>Couverture</dt><dd>{activePark === "thabor" ? "Points GPS contenus dans l’emprise officielle du parc ; les champs descriptifs ne servent pas à la sélection." : "Arbres situés dans l’emprise GPS fournie ; inventaire potentiellement incomplet."}</dd></div>
+        <div><dt>Couverture</dt><dd>Points GPS contenus dans l’emprise officielle du parc ; les champs descriptifs ne servent pas à la sélection.</dd></div>
         <div><dt>Plan du parc</dt><dd><a href={PARK_PLAN_SOURCE_URL} target="_blank" rel="noreferrer">Emprise : Rennes Métropole</a> · <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">Allées et plans d’eau : OpenStreetMap contributors</a> · <a href={activePark === "thabor" ? THABOR_PLAN_URL : PLAN_URL} download>GeoJSON</a> · ODbL 1.0</dd></div>
         <div><dt>Repères 3D</dt><dd>Volumes indicatifs : les hauteurs de bâtiments ne sont pas publiées par les sources. Photos au clic : Wikimedia Commons.</dd></div>
       </dl>

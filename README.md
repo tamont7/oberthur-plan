@@ -25,12 +25,12 @@ La carte utilise un plan vectoriel embarqué, sur un fond gris officiel de Renne
 Source : [Arbres sur l’espace public sur Rennes Métropole](https://data.rennesmetropole.fr/explore/dataset/arbre/), jeu `arbre`, API Explore v2.1 publique, sans clé.
 
 1. Lire le schéma et la licence du jeu.
-2. Rechercher les points dans l’emprise `[ouest, sud, est, nord]` : `[-1.661317, 48.111249, -1.657734, 48.113921]`.
-3. Paginer les résultats par lots de 100, triés par identifiant, et vérifier leur nombre.
-4. Retenir les points situés dans l’emprise GPS fournie, exclure `abattu = 1`. Le rectangle n’est pas le contour officiel du parc : les limites sont donc volontairement transparentes et modifiables dans `src/park.ts`.
+2. Rechercher les points dans le rectangle englobant du plan : `[-1.6613, 48.1112, -1.6582, 48.1141]`.
+3. Télécharger l’emprise officielle « Parc Hamelin Oberthür », puis retenir uniquement les points GPS contenus dans son MultiPolygon (hors éventuels trous).
+4. Paginer les résultats par lots de 100, triés par identifiant, et exclure `abattu = 1` après le test spatial.
 5. Normaliser et valider les points, propriétés et identifiants. Écrire le GeoJSON seulement lorsque l’import complet est valide.
 
-Extrait du 9 septembre 2026 : **299 arbres non abattus** dans l’emprise GPS. Ce nombre ne constitue pas une garantie d’exhaustivité de l’inventaire physique.
+Extrait du 10 septembre 2026 : **279 arbres non abattus** dans l’emprise officielle. Les 20 autres points du rectangle de collecte sont exclus géométriquement. Ce nombre ne constitue pas une garantie d’exhaustivité de l’inventaire physique.
 
 ```bash
 npm run data:import
@@ -39,7 +39,7 @@ npm run check
 
 La commande utilise [scripts/import-rennes.ts](scripts/import-rennes.ts) et remplace [public/data/arbres-rennes.geojson](public/data/arbres-rennes.geojson) après validation. En cas d’erreur réseau, de schéma ou de pagination, le fichier précédent reste intact. Vérifier la différence du GeoJSON avant publication ; aucune actualisation automatique n’a lieu pendant la visite.
 
-Le fichier conserve l’URL de requête, la date d’extraction, la date de traitement du jeu par le portail, les compteurs d’exclusion et les attributs originaux de chaque arbre. **Date de traitement du jeu, date d’import et date de mise à jour d’un arbre sont trois informations distinctes.**
+Le fichier conserve l’URL de requête, la date d’extraction, la date de traitement du jeu par le portail, les compteurs d’exclusion, la référence de l’emprise officielle et les attributs originaux de chaque arbre. **Date de traitement du jeu, date d’import et date de mise à jour d’un arbre sont trois informations distinctes.**
 
 | Champ source | Champ GeoJSON / traitement |
 |---|---|

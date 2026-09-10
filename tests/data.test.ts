@@ -3,8 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { filterTrees, parseTreeData, treeColor, treeHighlight, TREE_COLORS } from "../src/data";
 import { isParkLandmark, isPointInPark, parseParkPlan } from "../src/plan";
-import { treeCollectionSchema } from "../src/treeSchema";
-import { isInsideParkBounds } from "../src/park";
+import { createTreeCollectionSchema } from "../src/treeSchema";
 import { importRennes, normalizeRecord } from "../scripts/import-rennes";
 import { parseThaborPlan } from "../scripts/import-thabor-plan";
 
@@ -12,17 +11,18 @@ const snapshot = JSON.parse(readFileSync(new URL("../public/data/arbres-rennes.g
 const planSnapshot = JSON.parse(readFileSync(new URL("../public/data/parc-oberthur.geojson", import.meta.url), "utf8"));
 const thaborPlanSnapshot = JSON.parse(readFileSync(new URL("../public/data/parc-thabor.geojson", import.meta.url), "utf8"));
 const thaborTreeSnapshot = JSON.parse(readFileSync(new URL("../public/data/arbres-thabor.geojson", import.meta.url), "utf8"));
-const { trees, metadata } = parseTreeData(snapshot);
 const plan = parseParkPlan(planSnapshot);
+const { trees, metadata } = parseTreeData(snapshot, (longitude, latitude) => isPointInPark(plan, [longitude, latitude]));
 const first = snapshot.features[0];
 const record = { ...first.properties.source_properties, geo_shape: { geometry: first.geometry } };
 
-test("l’extrait embarqué est valide, traçable et limité à l’emprise GPS du parc", () => {
+test("l’extrait Oberthür est valide, traçable et limité par son point GPS à l’emprise officielle", () => {
   assert(trees.length > 0);
   assert.equal(new Set(trees.map((tree) => tree.id)).size, trees.length);
   assert.equal(metadata.imported_records, trees.length);
-  assert.equal(metadata.bbox_records, trees.length + metadata.excluded_felled);
-  assert(trees.every((tree) => isInsideParkBounds(tree.longitude, tree.latitude)));
+  assert.equal(metadata.bbox_records, trees.length + metadata.excluded_felled + (metadata.excluded_outside_park ?? -1));
+  assert.equal(metadata.excluded_outside_park, 20);
+  assert(trees.every((tree) => isPointInPark(plan, [tree.longitude, tree.latitude])));
   assert(snapshot.features.every((feature: typeof first) => feature.properties.source_properties.abattu !== 1));
   assert.equal(metadata.license, "Licence ODbL 1.0");
 });
@@ -120,12 +120,13 @@ test("les arbres dans l’emprise GPS sont publiés, sauf s’ils sont signalés
 });
 
 test("des coordonnées inversées, identifiants dupliqués ou champs manquants sont rejetés", () => {
+  const oberthurSchema = createTreeCollectionSchema((longitude, latitude) => isPointInPark(plan, [longitude, latitude]));
   const invalid = structuredClone(snapshot);
   invalid.features[0].geometry.coordinates.reverse();
-  assert.equal(treeCollectionSchema.safeParse(invalid).success, false);
+  assert.equal(oberthurSchema.safeParse(invalid).success, false);
   const duplicate = structuredClone(snapshot);
   duplicate.features[1].id = duplicate.features[0].id;
-  assert.equal(treeCollectionSchema.safeParse(duplicate).success, false);
+  assert.equal(oberthurSchema.safeParse(duplicate).success, false);
   assert.throws(() => normalizeRecord({ id: 1 }));
 });
 
@@ -163,11 +164,14 @@ test("la mise en évidence privilégie le survol, puis la sélection, puis le m�
 test("une pagination interrompue ne remplace jamais l’extrait utilisable", async () => {
   const path = new URL("../public/data/arbres-rennes.geojson", import.meta.url);
   const before = readFileSync(path, "utf8");
+  const boundary = plan.features.find((feature) => feature.properties.kind === "boundary");
+  assert(boundary && boundary.geometry.type === "MultiPolygon");
   const originalFetch = globalThis.fetch;
   let request = 0;
   globalThis.fetch = async () => {
     const responses = [
       { metas: { default: { license: "Licence ODbL 1.0", license_url: "https://opendatacommons.org/licenses/odbl/", data_processed: null } } },
+      { results: [{ gml_id: boundary.properties.source_id, nom: "Parc Hamelin Oberthür", geo_shape: { geometry: boundary.geometry } }] },
       { total_count: 2, results: [record] },
       { total_count: 2, results: [] },
     ];

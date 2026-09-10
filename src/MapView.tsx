@@ -291,13 +291,23 @@ function setParkView(
       (south + north) / 2,
     );
 
+  /*
+   * La distance n'est plus un seuil fixe : elle tient compte de la taille
+   * réelle de l'emprise et du format du canevas. Sur mobile, le champ de
+   * vision horizontal devient plus étroit et le recul s'ajuste donc de lui-même.
+   */
+  const latitude = (south + north) / 2;
+  const widthMetres = (east - west) * 111_320 * Math.cos(CesiumMath.toRadians(latitude)) + 80;
+  const heightMetres = (north - south) * 111_320 + 80;
+  const aspectRatio = Math.max(0.35, viewer.scene.canvas.clientWidth / Math.max(1, viewer.scene.canvas.clientHeight));
+  const frustum = viewer.camera.frustum as { fov?: number };
+  const verticalFov = frustum.fov ?? CesiumMath.toRadians(60);
+  const horizontalFov = 2 * Math.atan(Math.tan(verticalFov / 2) * aspectRatio);
   const range = Math.max(
-    620,
-    Math.max(
-      (east - west) * 74_000,
-      (north - south) * 111_000,
-    ) * 1.3,
-  );
+    260,
+    widthMetres / (2 * Math.tan(horizontalFov / 2)),
+    heightMetres / (2 * Math.tan(verticalFov / 2)),
+  ) * 1.16;
 
   viewer.camera.lookAt(
     centre,
