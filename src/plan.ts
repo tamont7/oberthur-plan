@@ -6,15 +6,23 @@ const polygon = z.object({ type: z.literal("Polygon"), coordinates: z.array(z.ar
 const multiPolygon = z.object({ type: z.literal("MultiPolygon"), coordinates: z.array(z.array(z.array(position).min(4)).min(1)).min(1) });
 const photo = z.object({
   url: z.string().url(), page_url: z.string().url(), author: z.string().min(1),
-  license: z.literal("CC BY-SA 3.0"), license_url: z.string().url(),
+  license: z.string().min(1), license_url: z.string().url(),
+});
+
+const landmark = z.object({
+  type: z.literal("Feature"), id: z.string().min(1), geometry: polygon,
+  properties: z.object({
+    kind: z.union([z.literal("building"), z.literal("landmark")]),
+    source: z.union([z.literal("Rennes Métropole"), z.literal("OpenStreetMap")]),
+    source_id: z.string().min(1), label: z.string().min(1), height_m: z.number().positive(), photo,
+  }),
 });
 
 const planFeatureSchema = z.union([
   z.object({ type: z.literal("Feature"), id: z.string().min(1), geometry: multiPolygon, properties: z.object({ kind: z.literal("boundary"), source: z.literal("Rennes Métropole"), source_id: z.string().min(1) }) }),
   z.object({ type: z.literal("Feature"), id: z.string().min(1), geometry: polygon, properties: z.object({ kind: z.literal("water"), source: z.literal("OpenStreetMap"), source_id: z.string().min(1) }) }),
   z.object({ type: z.literal("Feature"), id: z.string().min(1), geometry: lineString, properties: z.object({ kind: z.literal("path"), source: z.literal("OpenStreetMap"), source_id: z.string().min(1) }) }),
-  z.object({ type: z.literal("Feature"), id: z.literal("rennes-hotel-oberthur"), geometry: polygon, properties: z.object({ kind: z.literal("building"), source: z.literal("Rennes Métropole"), source_id: z.string().min(1), label: z.literal("Hôtel Oberthür"), height_m: z.number().positive(), photo }) }),
-  z.object({ type: z.literal("Feature"), id: z.literal("osm-kiosque-oberthur"), geometry: polygon, properties: z.object({ kind: z.literal("landmark"), source: z.literal("OpenStreetMap"), source_id: z.string().min(1), label: z.literal("Kiosque"), height_m: z.number().positive(), photo }) }),
+  landmark,
 ]);
 
 const parkPlanSchema = z.object({
@@ -42,16 +50,27 @@ const parkPlanSchema = z.object({
 export type PlanPosition = [number, number];
 type PlanPolygon = PlanPosition[][];
 type PlanMultiPolygon = PlanPolygon[];
-export type PlanPhoto = { url: string; page_url: string; author: string; license: "CC BY-SA 3.0"; license_url: string };
+export type PlanPhoto = { url: string; page_url: string; author: string; license: string; license_url: string };
+
+export type ParkLandmark = {
+  type: "Feature";
+  id: string;
+  geometry: { type: "Polygon"; coordinates: PlanPolygon };
+  properties: {
+    kind: "building" | "landmark";
+    source: "Rennes Métropole" | "OpenStreetMap";
+    source_id: string;
+    label: string;
+    height_m: number;
+    photo: PlanPhoto;
+  };
+};
 
 export type ParkPlanFeature =
   | { type: "Feature"; id: string; geometry: { type: "MultiPolygon"; coordinates: PlanMultiPolygon }; properties: { kind: "boundary"; source: "Rennes Métropole"; source_id: string } }
   | { type: "Feature"; id: string; geometry: { type: "Polygon"; coordinates: PlanPolygon }; properties: { kind: "water"; source: "OpenStreetMap"; source_id: string } }
   | { type: "Feature"; id: string; geometry: { type: "LineString"; coordinates: PlanPosition[] }; properties: { kind: "path"; source: "OpenStreetMap"; source_id: string } }
-  | { type: "Feature"; id: "rennes-hotel-oberthur"; geometry: { type: "Polygon"; coordinates: PlanPolygon }; properties: { kind: "building"; source: "Rennes Métropole"; source_id: string; label: "Hôtel Oberthür"; height_m: number; photo: PlanPhoto } }
-  | { type: "Feature"; id: "osm-kiosque-oberthur"; geometry: { type: "Polygon"; coordinates: PlanPolygon }; properties: { kind: "landmark"; source: "OpenStreetMap"; source_id: string; label: "Kiosque"; height_m: number; photo: PlanPhoto } };
-
-export type ParkLandmark = Extract<ParkPlanFeature, { properties: { kind: "building" | "landmark" } }>;
+  | ParkLandmark;
 
 export type ParkPlan = {
   type: "FeatureCollection";
@@ -72,4 +91,35 @@ export function parseParkPlan(value: unknown): ParkPlan {
 
 export function isParkLandmark(feature: ParkPlanFeature): feature is ParkLandmark {
   return feature.properties.kind === "building" || feature.properties.kind === "landmark";
+}
+
+function pointOnSegment([longitude, latitude]: PlanPosition, [fromLongitude, fromLatitude]: PlanPosition, [toLongitude, toLatitude]: PlanPosition) {
+  const cross = (longitude - fromLongitude) * (toLatitude - fromLatitude) - (latitude - fromLatitude) * (toLongitude - fromLongitude);
+  if (Math.abs(cross) > 1e-11) return false;
+  return longitude >= Math.min(fromLongitude, toLongitude) && longitude <= Math.max(fromLongitude, toLongitude)
+    && latitude >= Math.min(fromLatitude, toLatitude) && latitude <= Math.max(fromLatitude, toLatitude);
+}
+
+function pointInRing(point: PlanPosition, ring: PlanPosition[]) {
+  let inside = false;
+  for (let index = 0, previous = ring.length - 1; index < ring.length; previous = index++) {
+    const current = ring[index];
+    const before = ring[previous];
+    if (pointOnSegment(point, before, current)) return true;
+    const [longitude, latitude] = point;
+    const [x, y] = current;
+    const [previousX, previousY] = before;
+    if ((y > latitude) !== (previousY > latitude) && longitude < (previousX - x) * (latitude - y) / (previousY - y) + x) inside = !inside;
+  }
+  return inside;
+}
+
+/** True lorsque le point GPS est dans l’emprise officielle, hors de ses trous. */
+export function isPointInParkGeometry(boundary: PlanMultiPolygon, point: PlanPosition) {
+  return boundary.some(([outer, ...holes]) => pointInRing(point, outer) && !holes.some((hole) => pointInRing(point, hole)));
+}
+
+export function isPointInPark(plan: ParkPlan, point: PlanPosition) {
+  const boundary = plan.features.find((feature) => feature.properties.kind === "boundary");
+  return Boolean(boundary && boundary.geometry.type === "MultiPolygon" && isPointInParkGeometry(boundary.geometry.coordinates, point));
 }

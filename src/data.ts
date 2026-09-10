@@ -1,4 +1,5 @@
 import {
+  createTreeCollectionSchema,
   treeCollectionSchema,
   type TreeCollection,
 } from "./treeSchema";
@@ -92,9 +93,10 @@ export type Tree = {
 
 export function parseTreeData(
   value: unknown,
+  containsPoint?: (longitude: number, latitude: number) => boolean,
 ) {
   const collection =
-    treeCollectionSchema.parse(
+    (containsPoint ? createTreeCollectionSchema(containsPoint) : treeCollectionSchema).parse(
       value,
     );
 

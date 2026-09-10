@@ -302,7 +302,7 @@ function setParkView(
   viewer.camera.lookAt(
     centre,
     new HeadingPitchRange(
-      CesiumMath.toRadians(6),
+      CesiumMath.toRadians(0),
       CesiumMath.toRadians(viewMode === "2d" ? -87 : -70),
       range,
     ),

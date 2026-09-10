@@ -24,6 +24,7 @@ import {
 } from "../src/botanicalNames";
 
 import {
+  createTreeFeatureSchema,
   treeCollectionSchema,
   treeFeatureSchema,
 } from "../src/treeSchema";
@@ -151,6 +152,7 @@ function meaningfulText(
 
 export function normalizeRecord(
   input: unknown,
+  containsPoint = isInsideParkBounds,
 ) {
   const record =
     recordSchema.parse(
@@ -163,7 +165,7 @@ export function normalizeRecord(
       .coordinates;
 
   if (
-    !isInsideParkBounds(
+    !containsPoint(
       lon,
       lat,
     )
@@ -212,12 +214,14 @@ export function normalizeRecord(
     value:
       | number
       | null,
+    maximum = Infinity,
   ) =>
     value !== null &&
       Number.isFinite(
         value,
       ) &&
-      value > 0
+      value > 0 &&
+      value <= maximum
       ? value
       : null;
 
@@ -234,7 +238,7 @@ export function normalizeRecord(
 
   return {
     feature:
-      treeFeatureSchema.parse(
+      (containsPoint === isInsideParkBounds ? treeFeatureSchema : createTreeFeatureSchema(containsPoint)).parse(
         {
           type:
             "Feature",
@@ -296,6 +300,7 @@ export function normalizeRecord(
             houppier_m:
               measure(
                 record.houppier,
+                40,
               ),
 
             hauteur_1_ere_feuille_m:
@@ -552,7 +557,7 @@ export async function importRennes() {
 
   const normalized =
     records.map(
-      normalizeRecord,
+      (record) => normalizeRecord(record),
     );
 
   const features =

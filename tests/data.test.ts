@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { filterTrees, parseTreeData, treeColor, treeHighlight, TREE_COLORS } from "../src/data";
-import { isParkLandmark, parseParkPlan } from "../src/plan";
+import { isParkLandmark, isPointInPark, parseParkPlan } from "../src/plan";
 import { treeCollectionSchema } from "../src/treeSchema";
 import { isInsideParkBounds } from "../src/park";
 import { importRennes, normalizeRecord } from "../scripts/import-rennes";
@@ -11,6 +11,7 @@ import { parseThaborPlan } from "../scripts/import-thabor-plan";
 const snapshot = JSON.parse(readFileSync(new URL("../public/data/arbres-rennes.geojson", import.meta.url), "utf8"));
 const planSnapshot = JSON.parse(readFileSync(new URL("../public/data/parc-oberthur.geojson", import.meta.url), "utf8"));
 const thaborPlanSnapshot = JSON.parse(readFileSync(new URL("../public/data/parc-thabor.geojson", import.meta.url), "utf8"));
+const thaborTreeSnapshot = JSON.parse(readFileSync(new URL("../public/data/arbres-thabor.geojson", import.meta.url), "utf8"));
 const { trees, metadata } = parseTreeData(snapshot);
 const plan = parseParkPlan(planSnapshot);
 const first = snapshot.features[0];
@@ -57,15 +58,29 @@ test("le plan vectoriel embarque l’emprise officielle, les axes, l’étang et
   assert.equal(plan.metadata.openstreetmap.license, "ODbL 1.0");
 });
 
-test("le plan du Thabor est autonome et ne contient aucun bâtiment", () => {
+test("le plan du Thabor embarque ses repères architecturaux", () => {
   const thabor = parseThaborPlan(thaborPlanSnapshot);
   const kinds = thabor.features.map((feature) => feature.properties.kind);
+  const landmarks = thabor.features.filter(isParkLandmark);
   assert.equal(kinds.filter((kind) => kind === "boundary").length, 1);
   assert(kinds.filter((kind) => kind === "path").length > 100);
   assert(kinds.filter((kind) => kind === "water").length > 0);
-  assert(!thabor.features.some((feature) => "height_m" in feature.properties));
+  assert.equal(landmarks.length, 3);
+  assert.deepEqual(landmarks.map((feature) => feature.properties.label).sort(), ["Kiosque à musique", "Orangerie du Thabor", "Église Notre-Dame-en-Saint-Melaine"].sort());
+  assert(landmarks.every((feature) => feature.properties.height_m > 0));
   assert.equal(thabor.metadata.rennes_metropole.license, "Licence ODbL 1.0");
   assert.equal(thabor.metadata.openstreetmap.license, "ODbL 1.0");
+});
+
+test("les arbres du Thabor sont sélectionnés par leur point GPS dans l’emprise officielle", () => {
+  const thaborPlan = parseThaborPlan(thaborPlanSnapshot);
+  const { trees: thaborTrees, metadata: thaborMetadata } = parseTreeData(thaborTreeSnapshot, (longitude, latitude) => isPointInPark(thaborPlan, [longitude, latitude]));
+  assert.equal(thaborTrees.length, 1081);
+  assert(thaborTrees.every((tree) => isPointInPark(thaborPlan, [tree.longitude, tree.latitude])));
+  assert.equal(thaborMetadata.selection, "Points GPS situés dans l’emprise officielle du Parc du Thabor ; abattu=1 exclu.");
+  assert.equal(thaborMetadata.bbox_records, thaborMetadata.imported_records + thaborMetadata.excluded_felled + (thaborMetadata.excluded_outside_park ?? -1));
+  assert.equal(thaborMetadata.excluded_outside_park, 149);
+  assert.equal(thaborMetadata.boundary_source_id, "v_evert_rm.fid--75dfcf00_1a08a2bb262_-7482");
 });
 
 test("l’import conserve l’identité et les unités, sans inventer de statut ni de mesure", () => {
@@ -81,6 +96,9 @@ test("l’import conserve l’identité et les unités, sans inventer de statut 
   const measured = normalizeRecord({ ...record, hauteur: 12, circonference: 150 });
   assert.equal(measured.feature?.properties.hauteur_m, 12);
   assert.equal(measured.feature?.properties.circonference_cm, 150);
+  const implausibleCrown = normalizeRecord({ ...record, houppier: 80 });
+  assert.equal(implausibleCrown.feature?.properties.houppier_m, null);
+  assert.equal(implausibleCrown.feature?.properties.source_properties.houppier, 80);
 });
 
 test("un nom français corrigé reste traçable au libellé publié", () => {

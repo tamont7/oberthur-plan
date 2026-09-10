@@ -10,6 +10,7 @@
     "data:import": "node --import tsx scripts/import-rennes.ts",
     "data:plan": "node --import tsx scripts/import-park-plan.ts",
     "data:thabor": "node --import tsx scripts/import-thabor-plan.ts",
+    "data:thabor:trees": "node --import tsx scripts/import-thabor-trees.ts",
     "test": "node --import tsx --test tests/*.test.ts",
     "test:e2e": "playwright test",
     "check": "npm test && npm run build"

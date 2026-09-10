@@ -119,10 +119,10 @@ test("le plan vectoriel ne dépend d’aucune tuile de fond", async ({ page }) =
   expect(osmTileRequest).toBe(false);
 });
 
-test("le Thabor est visible comme plan seul, sans inventaire d’arbres", async ({ page }) => {
+test("le Thabor expose son inventaire d’arbres limité à son emprise", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Thabor", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Parc du Thabor", exact: true })).toBeVisible();
   await expect(page.locator(".cesium-map")).toHaveAttribute("data-plan-features", "279");
-  await expect(page.locator(".tree-list-item")).toHaveCount(0);
+  await expect(page.locator(".tree-list-item")).toHaveCount(1081);
 });

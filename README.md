@@ -57,6 +57,8 @@ Le `nom` est celui affiché. Le libellé publié est conservé dans `nom_source`
 
 Les mesures ≤ 0 sont considérées non exploitables, pas des dimensions physiques. Le filtre « Remarquables » reste désactivé tant qu’aucun statut explicite n’est disponible. Une grande hauteur ne permet pas d’attribuer ce statut. Les arbres non signalés abattus par la source peuvent subsister dans l’inventaire.
 
+Un diamètre de houppier supérieur à 40 m est également traité comme non exploitable à l’affichage : il est remplacé par `null`, sans conversion ni estimation, tandis que la valeur source est conservée dans `source_properties`. Cette règle évite notamment d’interpréter les valeurs répétées de 80 m associées à certains tilleuls du Thabor comme des couronnes individuelles.
+
 Les types internes React utilisent camelCase ; le contrat GeoJSON est validé par [src/treeSchema.ts](src/treeSchema.ts). L’adaptation et la recherche sont dans [src/data.ts](src/data.ts). Aucun modèle 3D n’est requis.
 
 ## Plan vectoriel du parc
@@ -76,15 +78,23 @@ npm run check
 
 La commande [scripts/import-park-plan.ts](scripts/import-park-plan.ts) télécharge les trois couches, contrôle les deux coordonnées de repère fournies, une emprise officielle, un étang et le réseau continu d’allées, puis remplace le GeoJSON seulement en cas de succès. Les données de plan étant modifiées, l’extrait résultant reste sous ODbL ; consulter [DATA-LICENSE.md](DATA-LICENSE.md).
 
-## Plan du Thabor (préparé)
+## Parc du Thabor
 
-Le plan autonome [public/data/parc-thabor.geojson](public/data/parc-thabor.geojson) est préparé pour une future vue du Thabor. Il contient seulement l’emprise officielle, les allées et les plans d’eau : aucun bâtiment ni arbre ne lui est encore associé.
+Le plan autonome [public/data/parc-thabor.geojson](public/data/parc-thabor.geojson) comprend l’emprise officielle, les allées, les plans d’eau et trois repères 3D indicatifs : l’église Notre-Dame-en-Saint-Melaine, le kiosque à musique et l’Orangerie.
 
 ```bash
 npm run data:thabor
 ```
 
 La commande [scripts/import-thabor-plan.ts](scripts/import-thabor-plan.ts) télécharge l’emprise « Parc du Thabor » depuis [Espaces verts de Rennes Métropole](https://data.rennesmetropole.fr/explore/dataset/espaces_verts/) et les allées/plans d’eau depuis [OpenStreetMap](https://www.openstreetmap.org/copyright), valide le résultat puis l’écrit de manière atomique.
+
+L’inventaire [public/data/arbres-thabor.geojson](public/data/arbres-thabor.geojson) est importé séparément :
+
+```bash
+npm run data:thabor:trees
+```
+
+La commande récupère les points candidats dans un rectangle englobant, télécharge l’emprise officielle actuelle, puis conserve **seulement** les coordonnées GPS contenues dans le MultiPolygon (en excluant ses éventuels trous). Aucun champ tel que `localisation`, `complement` ou le nom de l’arbre ne sert à sélectionner les points. `abattu = 1` est exclu après ce test spatial. L’extrait du 10 septembre 2026 contient **1 081 arbres** ; 149 points candidats hors emprise ont été rejetés. Les compteurs, l’identifiant de l’emprise et les URLs de requête restent dans les métadonnées du GeoJSON.
 
 ## Licence et attribution
 

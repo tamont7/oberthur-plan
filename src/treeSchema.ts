@@ -2,11 +2,14 @@ import { z } from "zod";
 
 import { isInsideParkBounds } from "./park";
 
+export type ParkContainsPoint = (longitude: number, latitude: number) => boolean;
+
 const optionalText = z.string().min(1).nullable();
 const measurement = z.number().finite().positive().nullable();
 const optionalDate = z.string().datetime({ offset: true }).nullable();
 
-export const treeFeatureSchema = z.object({
+export function createTreeFeatureSchema(containsPoint: ParkContainsPoint) {
+  return z.object({
   type: z.literal("Feature"),
 
   id: z.string().min(1),
@@ -21,7 +24,7 @@ export const treeFeatureSchema = z.object({
       ])
       .refine(
         ([lon, lat]) =>
-          isInsideParkBounds(lon, lat),
+          containsPoint(lon, lat),
 
         "Arbre hors de l’emprise du parc",
       ),
@@ -93,10 +96,14 @@ export const treeFeatureSchema = z.object({
     source_properties:
       z.record(z.unknown()),
   }),
-});
+  });
+}
 
-export const treeCollectionSchema =
-  z
+export const treeFeatureSchema = createTreeFeatureSchema(isInsideParkBounds);
+
+export function createTreeCollectionSchema(containsPoint: ParkContainsPoint) {
+  const featureSchema = createTreeFeatureSchema(containsPoint);
+  return z
     .object({
       type:
         z.literal(
@@ -155,6 +162,19 @@ export const treeCollectionSchema =
             .int()
             .nonnegative(),
 
+        excluded_outside_park:
+          z
+            .number()
+            .int()
+            .nonnegative()
+            .optional(),
+
+        boundary_source_url:
+          z.string().url().optional(),
+
+        boundary_source_id:
+          z.string().min(1).optional(),
+
         imported_records:
           z
             .number()
@@ -165,7 +185,7 @@ export const treeCollectionSchema =
       features:
         z
           .array(
-            treeFeatureSchema,
+            featureSchema,
           )
           .min(1),
     })
@@ -207,6 +227,9 @@ export const treeCollectionSchema =
         }
       },
     );
+}
+
+export const treeCollectionSchema = createTreeCollectionSchema(isInsideParkBounds);
 
 export type TreeFeature =
   z.infer<
