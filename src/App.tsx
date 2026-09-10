@@ -9,6 +9,7 @@ const THABOR_PLAN_URL = `${import.meta.env.BASE_URL}data/parc-thabor.geojson`;
 const EMPTY_TREES: Tree[] = [];
 type ParkView = "oberthur" | "thabor";
 type MapViewMode = "2d" | "3d";
+type MobilePanelMode = "filter" | "list";
 const WIKIPEDIA_SEARCH_URL = "https://fr.wikipedia.org/w/index.php?search=";
 const WIKIPEDIA_API_URL = "https://fr.wikipedia.org/w/api.php?action=query&list=search&srlimit=1&format=json&origin=*&srsearch=";
 type TreeSort = "vernacular" | "scientific" | "count" | "height" | "crown";
@@ -572,6 +573,7 @@ export default function App() {
   const [recenter, setRecenter] = useState(0);
   const [mapViewMode, setMapViewMode] = useState<MapViewMode>("3d");
   const [mobilePanelOpen, setMobilePanelOpen] = useState(false);
+  const [mobilePanelMode, setMobilePanelMode] = useState<MobilePanelMode>("filter");
   const [isMobile, setIsMobile] = useState(() => window.matchMedia("(max-width: 760px)").matches);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const infoDialogRef = useRef<HTMLDialogElement>(null);
@@ -744,6 +746,7 @@ export default function App() {
     const option = speciesOptions.find((item) => item.taxon === taxon);
     setQuery(option ? speciesOptionLabel(option, speciesSort) : "");
     setSearchSuggestionsOpen(false);
+    if (isMobile) setMobilePanelOpen(false);
   };
   const clearSearch = () => {
     setQuery("");
@@ -773,14 +776,23 @@ export default function App() {
     if (event.pointerType === "touch") explorerTouchStartY.current = event.clientY;
   };
   const moveExplorerSwipe = (event: PointerEvent<HTMLElement>) => {
-    if (explorerTouchStartY.current !== null) setExplorerDragOffset(Math.max(0, event.clientY - explorerTouchStartY.current));
+    if (explorerTouchStartY.current !== null) setExplorerDragOffset(event.clientY - explorerTouchStartY.current);
   };
   const endExplorerSwipe = () => {
-    if (explorerDragOffset > 72) setMobilePanelOpen(false);
+    if (explorerDragOffset > 72) {
+      if (mobilePanelMode === "list") setMobilePanelMode("filter");
+      else setMobilePanelOpen(false);
+    } else if (explorerDragOffset < -72 && mobilePanelMode === "filter") {
+      setMobilePanelMode("list");
+    }
     explorerTouchStartY.current = null;
     setExplorerDragOffset(0);
   };
   const hasFilters = Boolean(query || speciesSort !== "vernacular");
+  const openMobilePanel = (mode: MobilePanelMode) => {
+    setMobilePanelMode(mode);
+    setMobilePanelOpen(true);
+  };
   const openInfo = () => {
     setMobilePanelOpen(false);
     setInfoOpen(true);
@@ -802,13 +814,13 @@ export default function App() {
     </div>
     <div className="filters">
       <SpeciesPicker options={speciesOptions} selectedTaxon={selectedSpecies} sort={speciesSort} onSelect={chooseSpecies} />
-      <TreeSortPicker sort={speciesSort} onChange={changeTreeSort} />
+      {(!isMobile || mobilePanelMode === "list") && <TreeSortPicker sort={speciesSort} onChange={changeTreeSort} />}
     </div>
     <div className="results-heading">
       <p role="status">{data ? `${visibleTrees.length} / ${trees.length} arbres` : dataError ? "Données indisponibles" : "Chargement des arbres…"}</p>
       {hasFilters && <button className="text-button" onClick={clearFilters}>Réinitialiser</button>}
     </div>
-    <div className="tree-list" ref={listRef} aria-busy={!data && !dataError}>
+    {(!isMobile || mobilePanelMode === "list") && <div className="tree-list" ref={listRef} aria-busy={!data && !dataError}>
       {dataError ? <div className="empty-state" role="alert">
         <p>Les données n’ont pas pu être chargées.</p>
         <button onClick={() => setDataAttempt((value) => value + 1)}>Réessayer les données</button>
@@ -830,10 +842,10 @@ export default function App() {
           <button type="button" className="focus-tree-button" onFocus={() => setHoveredTreeId(tree.id)} onBlur={() => setHoveredTreeId(null)} onClick={() => focusTree(tree)} aria-label={`Centrer la carte sur ${tree.name}`}>⌖</button>
         </div>
       )) : <div className="empty-state"><LeafIcon /><p>Aucun arbre ne correspond à ces critères.</p><button className="text-button" onClick={clearFilters}>Effacer les filtres</button></div>}
-    </div>
-    <footer className="panel-footer">
+    </div>}
+    {(!isMobile || mobilePanelMode === "list") && <footer className="panel-footer">
       <button className="info-button" onClick={openInfo} aria-haspopup="dialog" aria-label="Informations sur les données"><InfoIcon /></button>
-    </footer>
+    </footer>}
   </>;
 
   return <main className="app-shell">
@@ -859,19 +871,22 @@ export default function App() {
       </div>
       {!planOnly && selectedTree && <TreeDetail tree={selectedTree} count={speciesStats.get(selectedTree.species)?.count ?? 1} onClose={closeDetail} isMobile={isMobile} />}
       {!planOnly && selectedLandmark && <LandmarkDetail landmark={selectedLandmark} onClose={closeLandmark} />}
-      {!planOnly && <button ref={listTriggerRef} className={`mobile-list-trigger ${selectedTree ? "is-hidden" : ""}`} onClick={() => setMobilePanelOpen(true)}
-        aria-haspopup="dialog" aria-expanded={mobilePanelOpen} aria-controls="mobile-explorer">
-        {data ? `Explorer les ${visibleTrees.length} arbres` : "Ouvrir la liste"} <span aria-hidden="true">↑</span>
+      {!planOnly && <button ref={listTriggerRef} className={`mobile-sheet-trigger ${selectedTree ? "is-hidden" : ""}`} onClick={() => openMobilePanel("filter")}
+          aria-haspopup="dialog" aria-expanded={mobilePanelOpen} aria-controls="mobile-explorer">
+          {data ? hasFilters ? `${visibleTrees.length} résultats · Modifier` : `Explorer les ${visibleTrees.length} arbres` : "Explorer les arbres"} <span aria-hidden="true">↑</span>
       </button>}
     </section>
     {planOnly ? <aside className="thabor-panel" aria-label="Plan du Parc du Thabor">
       <p className="eyebrow">Plan préparé</p><h1>Parc du Thabor</h1>
       <p>Emprise officielle, allées et plans d’eau. Les bâtiments et l’inventaire d’arbres seront ajoutés plus tard.</p>
       <p className="thabor-source"><a href="https://data.rennesmetropole.fr/explore/dataset/espaces_verts/" target="_blank" rel="noreferrer">Rennes Métropole</a> · <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> · <a href={THABOR_PLAN_URL} download>GeoJSON</a> · ODbL 1.0</p>
-    </aside> : isMobile ? <dialog id="mobile-explorer" className="explorer-panel" ref={dialogRef} aria-label="Liste des arbres" tabIndex={-1} style={{ transform: `translateY(${explorerDragOffset}px)` }}
+    </aside> : isMobile ? <dialog id="mobile-explorer" className={`explorer-panel is-mobile-${mobilePanelMode}`} ref={dialogRef} aria-label={mobilePanelMode === "filter" ? "Filtrer les arbres" : "Liste des arbres"} tabIndex={-1} style={{ transform: `translateY(${explorerDragOffset}px)` }}
       onCancel={(event) => { event.preventDefault(); setMobilePanelOpen(false); }}
-      onClose={() => setMobilePanelOpen(false)}><button type="button" className="mobile-panel-handle" aria-label="Fermer la liste des arbres" onClick={() => setMobilePanelOpen(false)}
-        onPointerDown={beginExplorerSwipe} onPointerMove={moveExplorerSwipe} onPointerUp={endExplorerSwipe} onPointerCancel={endExplorerSwipe} />{explorer}</dialog>
+      onClose={() => setMobilePanelOpen(false)}><div className={`mobile-panel-handle is-${mobilePanelMode}`} onPointerDown={beginExplorerSwipe} onPointerMove={moveExplorerSwipe} onPointerUp={endExplorerSwipe} onPointerCancel={endExplorerSwipe}>
+        <button type="button" className="mobile-panel-direction is-map" aria-label="Revenir à la carte" onClick={() => setMobilePanelOpen(false)}><i aria-hidden="true" /><span>Carte</span><i aria-hidden="true" /></button>
+        <button type="button" className="mobile-panel-direction is-list" aria-label="Agrandir vers la liste des arbres" disabled={mobilePanelMode === "list"} onClick={() => setMobilePanelMode("list")}><i aria-hidden="true" /><span>Liste</span><i aria-hidden="true" /></button>
+      </div>
+        {mobilePanelMode === "list" && <div className="mobile-panel-title"><div><strong>Liste des arbres</strong></div><button type="button" className="text-button" onClick={() => setMobilePanelMode("filter")}>Modifier le filtre</button></div>}{explorer}</dialog>
       : <aside className="explorer-panel" aria-label="Liste des arbres">{explorer}</aside>}
     {!planOnly && <dialog className="info-dialog" ref={infoDialogRef} aria-labelledby="info-title" onClose={() => setInfoOpen(false)}>
       <div className="info-dialog-topline">

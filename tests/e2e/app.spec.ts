@@ -1,7 +1,9 @@
 import { test, expect, type Page } from "@playwright/test";
 
-async function openExplorer(page: Page, mobile: boolean) {
-  if (mobile) await page.getByRole("button", { name: /Explorer les|Ouvrir la liste/ }).click();
+async function openExplorer(page: Page, mobile: boolean, list = true) {
+  if (!mobile) return;
+  await page.getByRole("button", { name: /Explorer les|résultats/ }).click();
+  if (list) await page.getByRole("button", { name: "Agrandir vers la liste des arbres" }).click();
 }
 
 test("carte, crédits, filtres, fiche et recentrage", async ({ page, isMobile }, testInfo) => {
@@ -39,6 +41,10 @@ test("carte, crédits, filtres, fiche et recentrage", async ({ page, isMobile },
   const japaneseMaple = speciesSelect.locator(".species-option").filter({ hasText: "Erable du Japon" });
   await expect(japaneseMaple).toBeVisible();
   await japaneseMaple.click();
+  if (isMobile) {
+    await expect(page.getByRole("dialog")).not.toBeVisible();
+    await openExplorer(page, true);
+  }
   await expect(search).toHaveValue("Erable du Japon · Acer japonicum");
   await page.getByLabel("Trier par").selectOption("scientific");
   await expect(page.getByLabel("Trier par")).toHaveValue("scientific");
@@ -58,7 +64,7 @@ test("carte, crédits, filtres, fiche et recentrage", async ({ page, isMobile },
   if (isMobile) await expect(page.getByRole("dialog")).not.toBeVisible();
   await page.screenshot({ path: testInfo.outputPath("tree.png") });
   await page.getByRole("button", { name: "Fermer la fiche" }).click();
-  if (isMobile) await expect(page.getByRole("button", { name: /Explorer les/ })).toBeFocused();
+  if (isMobile) await expect(page.getByRole("button", { name: /Explorer les|résultats/ })).toBeFocused();
   else await expect(page.locator(".tree-list-item").first()).toBeFocused();
   await page.getByRole("button", { name: "⌖ Recentrer", exact: true }).click();
   await expect(page.locator(".tree-detail")).not.toBeVisible();
@@ -71,11 +77,11 @@ test("panneau mobile modal, clavier et retour du focus", async ({ page, isMobile
   await page.goto("/");
   await expect(page.locator(".tree-list-item").first()).toBeAttached();
   await expect(page.getByRole("searchbox")).not.toBeVisible();
-  await openExplorer(page, true);
+  await openExplorer(page, true, false);
   await expect(page.getByRole("dialog")).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).not.toBeVisible();
-  await expect(page.getByRole("button", { name: /Explorer les/ })).toBeFocused();
+  await expect(page.getByRole("button", { name: /Explorer les|résultats/ })).toBeFocused();
   await page.setViewportSize({ width: 1200, height: 800 });
   await expect(page.getByRole("searchbox")).toBeVisible();
 });
