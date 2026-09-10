@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   BoundingSphere,
   CallbackProperty,
+  Cartesian2,
   Cartesian3,
   Color,
   ColorGeometryInstanceAttribute,
@@ -91,6 +92,11 @@ type MapTooltip = {
   crownDiameter?: number | null;
   x: number;
   y: number;
+};
+
+type UserLocation = {
+  longitude: number;
+  latitude: number;
 };
 
 const PLAN_HEIGHT = 0.25;
@@ -1509,6 +1515,38 @@ export default function MapView(
 
   const [cameraHeading, setCameraHeading] = useState(0);
   const displayedHeadingRef = useRef(0);
+  const locationWatchRef = useRef<number | null>(null);
+  const shouldCenterOnLocationRef = useRef(false);
+  const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
+  const [locationStatus, setLocationStatus] = useState<"idle" | "locating" | "error">("idle");
+
+  useEffect(() => () => {
+    if (locationWatchRef.current !== null) navigator.geolocation.clearWatch(locationWatchRef.current);
+  }, []);
+
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    if (!viewer) return;
+
+    viewer.entities.removeById("user-location");
+    if (!userLocation) return;
+
+    viewer.entities.add({
+      id: "user-location",
+      position: Cartesian3.fromDegrees(userLocation.longitude, userLocation.latitude, PLAN_HEIGHT + 1),
+      point: {
+        pixelSize: 13,
+        color: Color.fromCssColorString("#2563eb"),
+        outlineColor: Color.WHITE,
+        outlineWidth: 3,
+      },
+    });
+    viewer.scene.requestRender();
+
+    return () => {
+      if (!viewer.isDestroyed()) viewer.entities.removeById("user-location");
+    };
+  }, [userLocation, revision]);
 
   useEffect(() => {
     treesRef.current =
@@ -3206,13 +3244,35 @@ export default function MapView(
     const viewer = viewerRef.current;
     if (!viewer) return;
 
-    viewer.camera.setView({
-      orientation: {
-        heading: viewer.camera.heading,
-        pitch: CesiumMath.toRadians(viewMode === "2d" ? -87 : -70),
-        roll: viewer.camera.roll,
-      },
-    });
+    const camera = viewer.camera;
+    const centre = camera.pickEllipsoid(
+      new Cartesian2(
+        viewer.scene.canvas.clientWidth / 2,
+        viewer.scene.canvas.clientHeight / 2,
+      ),
+      viewer.scene.globe.ellipsoid,
+    );
+
+    if (centre) {
+      const range = Cartesian3.distance(camera.positionWC, centre);
+      camera.lookAt(
+        centre,
+        new HeadingPitchRange(
+          camera.heading,
+          CesiumMath.toRadians(viewMode === "2d" ? -87 : -70),
+          range,
+        ),
+      );
+      camera.lookAtTransform(Matrix4.IDENTITY);
+    } else {
+      camera.setView({
+        orientation: {
+          heading: camera.heading,
+          pitch: CesiumMath.toRadians(viewMode === "2d" ? -87 : -70),
+          roll: camera.roll,
+        },
+      });
+    }
     viewer.scene.requestRender();
   }, [viewMode]);
 
@@ -3262,6 +3322,44 @@ export default function MapView(
     viewer.scene.requestRender();
   };
 
+  const locateUser = () => {
+    if (!navigator.geolocation) {
+      setLocationStatus("error");
+      return;
+    }
+
+    shouldCenterOnLocationRef.current = true;
+    setLocationStatus("locating");
+
+    if (locationWatchRef.current !== null) return;
+
+    locationWatchRef.current = navigator.geolocation.watchPosition(
+      ({ coords }) => {
+        const nextLocation = { longitude: coords.longitude, latitude: coords.latitude };
+        setUserLocation(nextLocation);
+        setLocationStatus("idle");
+
+        const viewer = viewerRef.current;
+        if (!viewer || !shouldCenterOnLocationRef.current) return;
+        shouldCenterOnLocationRef.current = false;
+        viewer.camera.cancelFlight();
+        viewer.camera.flyToBoundingSphere(
+          new BoundingSphere(Cartesian3.fromDegrees(nextLocation.longitude, nextLocation.latitude), 70),
+          {
+            duration: 0.7,
+            offset: new HeadingPitchRange(0, CesiumMath.toRadians(viewMode === "2d" ? -87 : -70), 150),
+          },
+        );
+      },
+      () => {
+        setLocationStatus("error");
+        if (locationWatchRef.current !== null) navigator.geolocation.clearWatch(locationWatchRef.current);
+        locationWatchRef.current = null;
+      },
+      { enableHighAccuracy: true, maximumAge: 10_000, timeout: 12_000 },
+    );
+  };
+
   return (
     <>
       <div
@@ -3286,12 +3384,15 @@ export default function MapView(
       />
 
       <div className={`map-navigation ${selectedTree ? "is-tree-open" : ""}`} aria-label="Navigation de la carte">
+        <button type="button" className={`map-locate-button ${userLocation ? "is-active" : ""}`} onClick={locateUser} aria-label="Me localiser" title="Me localiser">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" /><circle cx="12" cy="12" r="7.5" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3" /></svg>
+        </button>
         <button type="button" className="map-recenter-button" onClick={onRecenter} aria-label="Recentrer la carte sur le parc" title="Recentrer sur le parc">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7.5" /><circle cx="12" cy="12" r="2" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3" /></svg>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" /><path d="M9 14.5 12 8l3 6.5M10.2 12h3.6" /></svg>
         </button>
         <button type="button" className="map-compass" onClick={orientNorth} aria-label="Orienter la carte vers le nord">
           <span className="compass-dial" aria-hidden="true" style={{ transform: `rotate(${-cameraHeading}rad)` }}>
-            <svg viewBox="0 0 24 24"><path d="m12 2 5 14-5-3-5 3L12 2Z" /><path d="M12 9v13" /></svg><span>N</span>
+            <span className="compass-north-label">N</span><svg viewBox="0 0 24 24"><path className="compass-north" d="m12 3.5 4.3 10.2-4.3-2-4.3 2L12 3.5Z" /><path className="compass-south" d="m12 20.5-4.3-10.2 4.3 2 4.3-2L12 20.5Z" /></svg>
           </span>
         </button>
         <button type="button" className="map-dimension-button" onClick={onChangeViewMode} aria-label={`Passer en vue ${viewMode === "3d" ? "2D" : "3D"}`}>{viewMode.toUpperCase()}</button>
@@ -3300,6 +3401,9 @@ export default function MapView(
           <button type="button" className="map-control-button" onClick={() => changeZoom("out")} aria-label="Dézoomer">−</button>
         </div>
       </div>
+
+      {locationStatus === "locating" && <p className="map-location-notice" role="status">Localisation en cours…</p>}
+      {locationStatus === "error" && <p className="map-location-notice is-error" role="alert">La position n’a pas pu être obtenue. Vérifiez l’autorisation de localisation.</p>}
 
       {tooltip && (
         <div

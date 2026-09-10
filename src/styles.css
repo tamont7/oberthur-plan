@@ -214,7 +214,7 @@ h1 { margin-bottom: 0; color: #17372c; font-family: "Fraunces", Georgia, serif; 
 :focus-visible { outline: 3px solid #255bca; outline-offset: 3px; }
 button, a, summary { touch-action: manipulation; }
 button:disabled { cursor: not-allowed; opacity: .65; }
-button:not(.tree-foliage):not(.tree-list-item):not(.focus-tree-button):not(.park-choice):not(.mobile-panel-direction):not(.detail-toggle):not(.map-control-button):not(.map-recenter-button):not(.map-dimension-button):not(.map-compass):not(.brand):not(.icon-button):not(.text-button):not(.filter-chip):not(.mobile-sheet-trigger):not(.species-option):not(.sort-option):not(.info-button):not(.search-clear) { min-height: 44px; border: 1px solid #c1d3c5; border-radius: 8px; padding: 8px 12px; background: #fff; color: #1e503c; }
+button:not(.tree-foliage):not(.tree-list-item):not(.focus-tree-button):not(.park-choice):not(.mobile-panel-direction):not(.detail-toggle):not(.map-control-button):not(.map-recenter-button):not(.map-locate-button):not(.map-dimension-button):not(.map-compass):not(.brand):not(.icon-button):not(.text-button):not(.filter-chip):not(.mobile-sheet-trigger):not(.species-option):not(.sort-option):not(.info-button):not(.search-clear) { min-height: 44px; border: 1px solid #c1d3c5; border-radius: 8px; padding: 8px 12px; background: #fff; color: #1e503c; }
 .app-shell { height: 100dvh; }
 .brand { border: 0; padding: 0; text-align: left; background: rgb(251 252 249 / .94); border-radius: 24px; padding-right: 12px; }
 .map-navigation { position: absolute; z-index: 3; right: 20px; bottom: 34px; display: grid; justify-items: center; gap: 8px; }
@@ -222,16 +222,25 @@ button:not(.tree-foliage):not(.tree-list-item):not(.focus-tree-button):not(.park
 .map-control-button { display: grid; place-items: center; width: 36px; height: 34px; border: 0; padding: 0; color: #244a39; background: transparent; font-size: 24px; font-weight: 400; line-height: 1; }
 .map-control-button + .map-control-button { border-top: 1px solid #dce4da; }
 .map-control-button:hover { background: #edf4ee; }
-.map-recenter-button { display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid rgba(23, 55, 44, .16); border-radius: 50%; padding: 0; color: #315746; background: rgb(255 255 255 / .96); box-shadow: 0 3px 13px rgba(12, 42, 29, .12); }
-.map-recenter-button:hover { background: #edf4ee; }
-.map-recenter-button svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-width: 1.6; }
-.map-compass { position: relative; display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid rgba(23, 55, 44, .16); border-radius: 50%; padding: 0; color: #315746; background: rgb(255 255 255 / .96); box-shadow: 0 3px 13px rgba(12, 42, 29, .12); }
+.map-recenter-button { display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid rgba(23, 55, 44, .16); border-radius: 8px; padding: 0; color: #527164; background: rgb(255 255 255 / .96); box-shadow: 0 3px 13px rgba(12, 42, 29, .12); }
+.map-recenter-button:hover { color: #1e503c; background: #edf4ee; }
+.map-recenter-button svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.7; }
+.map-locate-button { display: grid; place-items: center; width: 42px; height: 42px; margin-bottom: 2px; border: 1px solid #2e72c8; border-radius: 50%; padding: 0; color: #fff; background: #2875cf; box-shadow: 0 5px 16px rgba(28, 94, 170, .3); transition: color .16s, background .16s, box-shadow .16s, transform .16s; }
+.map-locate-button:hover { background: #1e64b5; box-shadow: 0 7px 18px rgba(28, 94, 170, .38); transform: translateY(-1px); }
+.map-locate-button:active { transform: translateY(0) scale(.96); }
+.map-locate-button.is-active { border-color: #15559f; background: #155fac; box-shadow: 0 5px 16px rgba(21, 85, 159, .38), 0 0 0 3px rgba(40, 117, 207, .18); }
+.map-locate-button svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-width: 1.8; }
+.map-location-notice { position: absolute; z-index: 4; right: 66px; bottom: 44px; max-width: 245px; margin: 0; border: 1px solid #cde0d1; border-radius: 8px; padding: 8px 10px; color: #315746; background: rgb(251 252 249 / .96); box-shadow: 0 4px 14px rgba(12, 42, 29, .12); font-size: 11px; line-height: 1.35; }
+.map-location-notice.is-error { border-color: #e7c8a5; color: #754b22; background: #fff9f0; }
+.map-compass { position: relative; display: grid; place-items: center; width: 40px; height: 40px; border: 1px solid rgba(23, 55, 44, .16); border-radius: 12px; padding: 0; color: #315746; background: rgb(255 255 255 / .96); box-shadow: 0 3px 13px rgba(12, 42, 29, .12); }
 .map-compass:hover { background: #edf4ee; }
 .map-dimension-button { display: grid; place-items: center; width: 36px; height: 34px; border: 1px solid rgba(23, 55, 44, .16); border-radius: 8px; padding: 0; color: #fff; background: #1e503c; box-shadow: 0 3px 13px rgba(12, 42, 29, .12); font-family: "DM Mono", monospace; font-size: 11px; font-weight: 700; }
 .map-dimension-button:hover { background: #2f7657; }
-.compass-dial { position: absolute; inset: 0; transition: transform .08s linear; }
-.map-compass svg { position: absolute; top: 7px; left: 7px; width: 21px; height: 21px; fill: #2f7657; stroke: #2f7657; stroke-linecap: round; stroke-width: 1.4; }
-.compass-dial span { position: absolute; top: 2px; left: 50%; color: #315746; font-family: "DM Mono", monospace; font-size: 8px; font-weight: 700; transform: translateX(-50%); }
+.compass-dial { position: absolute; inset: 8px; transition: transform .08s linear; }
+.map-compass svg { display: block; width: 100%; height: 100%; }
+.map-compass .compass-north { fill: #ca6546; }
+.map-compass .compass-south { fill: #9ab0a2; }
+.compass-north-label { position: absolute; z-index: 1; top: -6px; left: 50%; color: #9d4b35; font-family: "DM Mono", monospace; font-size: 7px; font-weight: 700; line-height: 1; transform: translateX(-50%); }
 .park-switcher { position: absolute; z-index: 3; top: 24px; right: 26px; display: inline-flex; gap: 3px; padding: 3px; border: 1px solid rgba(23, 55, 44, .14); border-radius: 11px; background: rgb(255 255 255 / .94); box-shadow: 0 4px 15px rgba(12, 42, 29, .1); }
 .park-choice { display: inline-flex; align-items: center; gap: 7px; min-height: 38px; border: 0; border-radius: 8px; padding: 5px 9px; color: #6a8074; background: transparent; font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif; font-size: 11px; font-weight: 700; text-align: left; transition: color .16s, background .16s, box-shadow .16s; }
 .park-choice-symbol { width: 8px; height: 8px; border: 2px solid currentColor; border-radius: 50%; color: #79a98c; }
