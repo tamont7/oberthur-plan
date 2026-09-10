@@ -126,6 +126,24 @@ function MapSceneLoading() {
   </div>;
 }
 
+function ParkTitle({ parkId, name }: { parkId: ParkView; name: string }) {
+  const [previous, setPrevious] = useState({ parkId, name });
+  const isChanging = previous.parkId !== parkId;
+
+  useEffect(() => {
+    if (!isChanging) return;
+    const timer = window.setTimeout(() => setPrevious({ parkId, name }), 360);
+    return () => window.clearTimeout(timer);
+  }, [isChanging, name, parkId]);
+
+  if (!isChanging) return <span><strong>{name}</strong></span>;
+
+  return <span className="park-title-transition">
+    <strong className="park-title-leaving" aria-hidden="true">{previous.name}</strong>
+    <strong className="park-title-entering">{name}</strong>
+  </span>;
+}
+
 function dateLabel(value: string | null) {
   return value ? new Intl.DateTimeFormat("fr-FR", { timeZone: "UTC" }).format(new Date(value)) : "Non renseignée";
 }
@@ -510,6 +528,7 @@ export default function App() {
   const [hoveredTreeId, setHoveredTreeId] = useState<string | null>(null);
   const [recenter, setRecenter] = useState(0);
   const [mapViewMode, setMapViewMode] = useState<MapViewMode>("3d");
+  const [isParkTransitioning, setIsParkTransitioning] = useState(false);
   const [mobilePanelOpen, setMobilePanelOpen] = useState(false);
   const [mobilePanelMode, setMobilePanelMode] = useState<MobilePanelMode>("filter");
   const [isMobile, setIsMobile] = useState(() => window.matchMedia("(max-width: 760px)").matches);
@@ -717,6 +736,7 @@ export default function App() {
   const returnToPark = () => { setSelectedId(null); setSelectedLandmark(null); setRecenter((value) => value + 1); };
   const changePark = (nextPark: ParkView) => {
     if (nextPark === activePark) return;
+    setIsParkTransitioning(true);
     setActivePark(nextPark);
     setQuery("");
     setSelectedSpecies("");
@@ -778,7 +798,7 @@ export default function App() {
       <p role="status">{data ? `${visibleTrees.length} / ${trees.length} arbres` : dataError ? "Données indisponibles" : "Chargement des arbres…"}</p>
       {hasFilters && <button className="text-button" onClick={clearFilters}>Réinitialiser</button>}
     </div>
-    {(!isMobile || mobilePanelMode === "list") && <div className="tree-list" ref={listRef} aria-busy={!data && !dataError}>
+    {(!isMobile || mobilePanelMode === "list") && <div className={`tree-list ${isParkTransitioning ? "is-park-transitioning" : ""}`} ref={listRef} aria-busy={!data && !dataError}>
       {dataError ? <div className="empty-state" role="alert">
         <p>Les données n’ont pas pu être chargées.</p>
         <button onClick={() => setDataAttempt((value) => value + 1)}>Réessayer les données</button>
@@ -807,16 +827,16 @@ export default function App() {
   </>;
 
   return <main className="app-shell">
-    <section className="map-area" aria-label="Carte et fiche arbre">
+    <section className={`map-area ${isParkTransitioning ? "is-transitioning" : ""}`} aria-label="Carte et fiche arbre">
       <MapBoundary key={mapAttempt} onRetry={() => setMapAttempt((value) => value + 1)}>
         <Suspense fallback={<MapSceneLoading />}>
-          <MapView trees={trees} plan={plan} parkId={activePark} visibleTrees={mapVisibleTrees} interactiveTrees={visibleTrees} selectedTree={selectedTree} focusTreeId={focusTreeId} focusRequest={focusRequest} viewMode={mapViewMode} onChangeViewMode={() => setMapViewMode((mode) => mode === "3d" ? "2d" : "3d")} isMobile={isMobile} hoveredTreeId={hoveredTreeId} onSelectTree={chooseTree} onSelectLandmark={chooseLandmark} onRecenter={() => setRecenter((value) => value + 1)} recenter={recenter} />
+          <MapView trees={trees} plan={plan} parkId={activePark} isParkTransitioning={isParkTransitioning} onSceneReady={() => setIsParkTransitioning(false)} visibleTrees={mapVisibleTrees} interactiveTrees={visibleTrees} selectedTree={selectedTree} focusTreeId={focusTreeId} focusRequest={focusRequest} viewMode={mapViewMode} onChangeViewMode={() => setMapViewMode((mode) => mode === "3d" ? "2d" : "3d")} isMobile={isMobile} hoveredTreeId={hoveredTreeId} onSelectTree={chooseTree} onSelectLandmark={chooseLandmark} onRecenter={() => setRecenter((value) => value + 1)} recenter={recenter} />
         </Suspense>
       </MapBoundary>
       <header className="map-header">
         <button className="brand" onClick={returnToPark} aria-label={`${parkName} — Revenir au parc`}>
           <span className="brand-mark"><LeafIcon /></span>
-          <span><strong>{parkName}</strong></span>
+          <ParkTitle parkId={activePark} name={parkName} />
         </button>
       </header>
       <div className="park-switcher" role="group" aria-label="Choisir un parc">

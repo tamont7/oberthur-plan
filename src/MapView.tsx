@@ -52,6 +52,8 @@ type MapViewProps = {
   trees: Tree[];
   plan: ParkPlan | null;
   parkId: string;
+  isParkTransitioning: boolean;
+  onSceneReady: () => void;
   visibleTrees: Tree[];
   interactiveTrees: Tree[];
   selectedTree: Tree | null;
@@ -1453,6 +1455,8 @@ export default function MapView(
   const {
     plan,
     parkId,
+    isParkTransitioning,
+    onSceneReady,
     selectedTree,
     focusTreeId,
     focusRequest,
@@ -1529,6 +1533,9 @@ export default function MapView(
 
   const onSelectLandmarkRef =
     useRef(onSelectLandmark);
+
+  const onSceneReadyRef =
+    useRef(onSceneReady);
 
   const [revision, setRevision] =
     useState(0);
@@ -1607,12 +1614,16 @@ export default function MapView(
 
     onSelectLandmarkRef.current =
       onSelectLandmark;
+
+    onSceneReadyRef.current =
+      onSceneReady;
   }, [
     trees,
     interactiveTrees,
     plan,
     onSelectTree,
     onSelectLandmark,
+    onSceneReady,
     isMobile,
   ]);
 
@@ -2850,9 +2861,9 @@ export default function MapView(
                 ColorGeometryInstanceAttribute.fromColor(
                   getCrownLayerColor(
                     tree,
-                  getCrownPartShade(tree, shape, 0),
+                    getCrownPartShade(tree, shape, 0),
+                  ),
                 ),
-              ),
               show: new ShowGeometryInstanceAttribute(isVisible),
             },
           }),
@@ -3153,7 +3164,7 @@ export default function MapView(
 
     const startedAt = performance.now();
     const minimumLoadingDuration = 650;
-    const sceneSettlingDuration = 450;
+    const sceneSettlingDuration = 350;
     let completeFrames = 0;
     let readyTimer: number | undefined;
     const removeListener = viewer.scene.postRender.addEventListener(() => {
@@ -3165,22 +3176,28 @@ export default function MapView(
       const sceneIsComplete =
         primitives.length > 0 &&
         primitives.every((primitive) => primitive.ready) &&
-        viewer.entities.values.length >= plan.features.length;
+        viewer.entities.values.length >= plan.features.length &&
+        viewer.dataSourceDisplay.ready &&
+        viewer.scene.globe.tilesLoaded;
 
       if (!sceneIsComplete) {
         completeFrames = 0;
+        viewer.scene.requestRender();
         return;
       }
 
       completeFrames += 1;
-      if (completeFrames < 2) {
+      if (completeFrames < 4) {
         viewer.scene.requestRender();
         return;
       }
 
       removeListener();
       readyTimer = window.setTimeout(
-        () => setContentReady(true),
+        () => {
+          setContentReady(true);
+          onSceneReadyRef.current();
+        },
         Math.max(
           sceneSettlingDuration,
           minimumLoadingDuration - (performance.now() - startedAt),
@@ -3626,8 +3643,8 @@ export default function MapView(
       />
 
       <div
-        className={`map-scene-loading ${phase === "error" || (phase === "ready" && contentReady) ? "is-ready" : ""}`}
-        aria-hidden={phase === "error" || (phase === "ready" && contentReady)}
+        className={`map-scene-loading ${phase === "error" || (phase === "ready" && contentReady && !isParkTransitioning) ? "is-ready" : ""}`}
+        aria-hidden={phase === "error" || (phase === "ready" && contentReady && !isParkTransitioning)}
         role="status"
       >
         <div className="map-scene-loading-tree" aria-hidden="true">
@@ -3659,7 +3676,7 @@ export default function MapView(
       </div>
 
       {locationStatus === "locating" && <p className="map-location-notice" role="status">Localisation en cours…</p>}
-      {locationStatus === "too-far" && <p className="map-location-notice is-error" role="alert">Vous êtes trop loin du parc affiché. La carte reste sur le parc.</p>}
+      {locationStatus === "too-far" && <p className="map-location-notice is-error" role="alert">Vous êtes trop loin du parc affiché.</p>}
       {locationStatus === "error" && <p className="map-location-notice is-error" role="alert">La position n’a pas pu être obtenue. Vérifiez l’autorisation de localisation.</p>}
 
       {tooltip && (
@@ -3694,31 +3711,31 @@ export default function MapView(
 
       {phase ===
         "error" && (
-        <div
-          className="map-notice"
-          role="alert"
-        >
-          <p>
-            La carte 3D est
-            indisponible.
-            Vérifiez que WebGL
-            est activé ; la
-            liste et les fiches
-            restent accessibles.
-          </p>
-
-          <button
-            onClick={() =>
-              setRevision(
-                (value) =>
-                  value + 1,
-              )
-            }
+          <div
+            className="map-notice"
+            role="alert"
           >
-            Réessayer la carte
-          </button>
-        </div>
-      )}
+            <p>
+              La carte 3D est
+              indisponible.
+              Vérifiez que WebGL
+              est activé ; la
+              liste et les fiches
+              restent accessibles.
+            </p>
+
+            <button
+              onClick={() =>
+                setRevision(
+                  (value) =>
+                    value + 1,
+                )
+              }
+            >
+              Réessayer la carte
+            </button>
+          </div>
+        )}
     </>
   );
 }
