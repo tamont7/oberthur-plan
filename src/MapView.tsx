@@ -5,17 +5,24 @@ import {
   Cartesian3,
   Color,
   ColorGeometryInstanceAttribute,
+  ComponentDatatype,
   CylinderGeometry,
+  DirectionalLight,
   EllipsoidGeometry,
+  Geometry,
+  GeometryAttribute,
+  GeometryAttributes,
   GeometryInstance,
   HeadingPitchRange,
   HeadingPitchRoll,
   Math as CesiumMath,
+  Matrix3,
   Matrix4,
   PerInstanceColorAppearance,
   PolygonHierarchy,
   Primitive,
   PrimitiveCollection,
+  PrimitiveType,
   Quaternion,
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
@@ -51,6 +58,7 @@ type MapViewProps = {
   hoveredTreeId: string | null;
   onSelectTree: (tree: Tree) => void;
   onSelectLandmark: (landmark: ParkLandmark) => void;
+  onRecenter: () => void;
   recenter: number;
 };
 
@@ -67,6 +75,12 @@ type TreeProportions = {
   crownHeight: number;
   crownRadiusX: number;
   crownRadiusY: number;
+};
+
+type CrownPlacement = {
+  centerZ: number;
+  scaleZ: number;
+  trunkOverlap: number;
 };
 
 type MapTooltip = {
@@ -89,6 +103,8 @@ const TREE_SELECTED_COLOR =
 
 const TREE_HOVER_COLOR =
   Color.fromCssColorString("#f2b84b");
+
+const ORGANIC_CROWN_MAX_LOBE_COUNT = 4;
 
 function makeTreeTooltip(tree: Tree, count: number, x: number, y: number): MapTooltip {
   return {
@@ -327,6 +343,21 @@ function hashTree(tree: Tree) {
   return hash >>> 0;
 }
 
+function treeRandom(
+  tree: Tree,
+  salt: number,
+) {
+  let value =
+    hashTree(tree) ^
+    Math.imul(salt + 1, 0x9e3779b1);
+
+  value ^= value >>> 16;
+  value = Math.imul(value, 0x85ebca6b);
+  value ^= value >>> 13;
+
+  return (value >>> 0) / 0x1_0000_0000;
+}
+
 function treeRotation(tree: Tree) {
   return CesiumMath.toRadians(
     hashTree(tree) % 360,
@@ -413,6 +444,23 @@ function getBaseCrownColor(tree: Tree) {
   return varyColor(
     tree,
     TREE_COLORS.normal,
+  );
+}
+
+function getCrownLayerColor(
+  tree: Tree,
+  shade: number,
+) {
+  const base =
+    getBaseCrownColor(tree);
+
+  return Color.lerp(
+    base,
+    shade < 0
+      ? Color.BLACK
+      : Color.WHITE,
+    Math.abs(shade),
+    new Color(),
   );
 }
 
@@ -507,12 +555,46 @@ function getTreeProportions(
   };
 }
 
+/*
+ * Le tronc doit entrer dans le houppier : un simple contact ponctuel
+ * au bas d'un ellipsoïde le fait paraître suspendu. La couronne conserve
+ * donc sa base botanique ; c'est le tronc qui y entre légèrement.
+ */
+function getCrownPlacement(
+  trunkHeight: number,
+  crownHeight: number,
+  shape: TreeShape,
+): CrownPlacement {
+  const overlap = Math.min(
+    1.2,
+    Math.max(
+      0.25,
+      crownHeight * 0.1,
+    ),
+  );
+
+  return {
+    centerZ:
+      trunkHeight +
+      crownHeight / 2,
+    scaleZ:
+      shape === "conical"
+        ? crownHeight
+        : crownHeight / 2,
+    trunkOverlap: overlap,
+  };
+}
+
 function makeTreeMatrix(
   tree: Tree,
   translationZ: number,
   scaleX: number,
   scaleY: number,
   scaleZ: number,
+  translationX = 0,
+  translationY = 0,
+  headingOffset = 0,
+  pitch = 0,
 ) {
   const position =
     Cartesian3.fromDegrees(
@@ -529,8 +611,9 @@ function makeTreeMatrix(
   const rotation =
     Quaternion.fromHeadingPitchRoll(
       new HeadingPitchRoll(
-        treeRotation(tree),
-        0,
+        treeRotation(tree) +
+        headingOffset,
+        pitch,
         0,
       ),
     );
@@ -540,8 +623,8 @@ function makeTreeMatrix(
 
   trs.translation =
     new Cartesian3(
-      0,
-      0,
+      translationX,
+      translationY,
       translationZ,
     );
 
@@ -566,6 +649,545 @@ function makeTreeMatrix(
     localMatrix,
     new Matrix4(),
   );
+}
+
+function getTreeLocalDirection(
+  tree: Tree,
+  headingOffset: number,
+  pitch: number,
+) {
+  const rotation =
+    Quaternion.fromHeadingPitchRoll(
+      new HeadingPitchRoll(
+        treeRotation(tree) +
+        headingOffset,
+        pitch,
+        0,
+      ),
+    );
+
+  return Matrix3.multiplyByVector(
+    Matrix3.fromQuaternion(
+      rotation,
+      new Matrix3(),
+    ),
+    Cartesian3.UNIT_Z,
+    new Cartesian3(),
+  );
+}
+
+function crownLobeId(
+  treeId: string,
+  lobeIndex: number,
+) {
+  return `${treeId}--crown-lobe-${lobeIndex}`;
+}
+
+function coniferTierId(
+  treeId: string,
+  tierIndex: number,
+) {
+  return `${treeId}--conifer-tier-${tierIndex}`;
+}
+
+function getCrownInstanceIds(
+  tree: Tree,
+  shape: TreeShape,
+) {
+  const ids = [tree.id];
+
+  if (hasOrganicCrownLobes(shape)) {
+    for (
+      let index = 1;
+      index <= getOrganicCrownLobeCount(tree);
+      index += 1
+    ) {
+      ids.push(crownLobeId(tree.id, index));
+    }
+  }
+
+  if (shape === "conical") {
+    for (
+      let index = 1;
+      index < getConiferTierCount(tree);
+      index += 1
+    ) {
+      ids.push(coniferTierId(tree.id, index));
+    }
+  }
+
+  return ids;
+}
+
+function getCrownPartShade(
+  tree: Tree,
+  shape: TreeShape,
+  partIndex: number,
+) {
+  if (shape === "conical") {
+    return [-0.14, -0.075, -0.015, 0.05][partIndex] ?? 0;
+  }
+
+  if (hasOrganicCrownLobes(shape)) {
+    const base =
+      [-0.1, 0.04, -0.025, 0.06, 0.015][partIndex] ?? 0;
+
+    return base +
+      (treeRandom(tree, partIndex + 30) - 0.5) *
+      0.045;
+  }
+
+  return 0;
+}
+
+function hasOrganicCrownLobes(
+  shape: TreeShape,
+) {
+  /*
+   * Les feuillus gagnent une silhouette moins
+   * parfaite avec quelques volumes secondaires.
+   * Les conifères et les arbres colonnaires
+   * restent volontairement lisibles d'un coup d'œil.
+   */
+  return (
+    shape === "round" ||
+    shape === "spreading" ||
+    shape === "compact"
+  );
+}
+
+function getOrganicCrownLobeCount(
+  tree: Tree,
+) {
+  return 2 +
+    Math.floor(
+      treeRandom(tree, 20) * 3,
+    );
+}
+
+function getConiferTierCount(
+  tree: Tree,
+) {
+  return 3 +
+    Math.floor(
+      treeRandom(tree, 12) * 2,
+    );
+}
+
+function getConiferTiers(
+  tree: Tree,
+  crownRadiusX: number,
+  crownRadiusY: number,
+  trunkHeight: number,
+  crownHeight: number,
+) {
+  const tierCount =
+    getConiferTierCount(tree);
+
+  return Array.from(
+    { length: tierCount },
+    (_, index) => {
+      const heightFactor =
+        0.54 -
+        index * 0.075;
+      const centreFactor =
+        Math.min(
+          1 - heightFactor / 2,
+          0.27 + index * 0.235,
+        );
+      const radiusFactor =
+        0.96 -
+        index *
+        0.54 /
+        Math.max(1, tierCount - 1);
+      const variationX =
+        0.94 +
+        treeRandom(tree, index + 60) * 0.12;
+      const variationY =
+        0.94 +
+        treeRandom(tree, index + 70) * 0.12;
+
+      return {
+        centerZ:
+          trunkHeight +
+          crownHeight *
+          centreFactor,
+        scaleX:
+          crownRadiusX *
+          radiusFactor *
+          variationX,
+        scaleY:
+          crownRadiusY *
+          radiusFactor *
+          variationY,
+        scaleZ:
+          crownHeight *
+          heightFactor,
+        x:
+          (treeRandom(tree, index + 80) - 0.5) *
+          crownRadiusX *
+          0.065,
+        y:
+          (treeRandom(tree, index + 90) - 0.5) *
+          crownRadiusY *
+          0.065,
+      };
+    },
+  );
+}
+
+function getOrganicCrownLobes(
+  tree: Tree,
+  crownRadiusX: number,
+  crownRadiusY: number,
+  crownHeight: number,
+  crownScaleZ: number,
+) {
+  const lobeCount =
+    getOrganicCrownLobeCount(tree);
+  const rotation =
+    treeRandom(tree, 21) *
+    Math.PI * 2;
+
+  return Array.from(
+    { length: lobeCount },
+    (_, index) => {
+      const angle =
+        rotation +
+        index / lobeCount * Math.PI * 2 +
+        (treeRandom(tree, index + 22) - 0.5) *
+        0.42;
+      const distance =
+        0.2 +
+        treeRandom(tree, index + 26) * 0.18;
+
+      return {
+        x:
+          Math.cos(angle) *
+          crownRadiusX *
+          distance,
+        y:
+          Math.sin(angle) *
+          crownRadiusY *
+          distance,
+        z:
+          (treeRandom(tree, index + 34) - 0.47) *
+          crownHeight *
+          0.22,
+        scaleX:
+          crownRadiusX *
+          (0.4 + treeRandom(tree, index + 38) * 0.16),
+        scaleY:
+          crownRadiusY *
+          (0.4 + treeRandom(tree, index + 42) * 0.16),
+        scaleZ:
+          crownScaleZ *
+          (0.43 + treeRandom(tree, index + 46) * 0.17),
+      };
+    },
+  );
+}
+
+function getMainBranches(
+  tree: Tree,
+  shape: TreeShape,
+  trunkHeight: number,
+  crownHeight: number,
+  crownRadiusX: number,
+  crownRadiusY: number,
+) {
+  if (
+    !hasOrganicCrownLobes(shape) ||
+    trunkHeight < 2 ||
+    crownHeight < 4
+  ) {
+    return [];
+  }
+
+  const count =
+    3 +
+    Math.floor(
+      treeRandom(tree, 100) * 2,
+    );
+  const baseRotation =
+    treeRandom(tree, 101) *
+    Math.PI * 2;
+  const crownRadius =
+    Math.min(crownRadiusX, crownRadiusY);
+
+  return Array.from(
+    { length: count },
+    (_, index) => {
+      const heading =
+        baseRotation +
+        index / count * Math.PI * 2 +
+        (treeRandom(tree, index + 102) - 0.5) *
+        0.22;
+      const length =
+        Math.max(
+          1.2,
+          Math.min(
+            crownRadius *
+            (0.42 + treeRandom(tree, index + 108) * 0.16),
+            crownHeight * 0.42,
+          ),
+        );
+      const pitch =
+        CesiumMath.toRadians(
+          42 +
+          treeRandom(tree, index + 114) * 12,
+        );
+      return {
+        startZ:
+          trunkHeight *
+          (0.84 + treeRandom(tree, index + 120) * 0.1),
+        length,
+        heading,
+        pitch,
+        radius:
+          0.055 +
+          Math.min(
+            0.12,
+            crownRadius * 0.012,
+          ),
+      };
+    },
+  );
+}
+
+type CrownProfilePoint = {
+  z: number;
+  radius: number;
+};
+
+/*
+ * Ces profils donnent une silhouette volontairement dessinée : bords
+ * doucement festonnés pour les feuillus, étages fondus dans une seule forme
+ * pour les conifères. Ils remplacent les sphères et cônes génériques tout en
+ * restant des géométries partagées par les arbres d'un même type.
+ */
+function getStylizedCrownProfile(
+  shape: TreeShape,
+): {
+  profile: CrownProfilePoint[];
+  lobeCount: number;
+  lobeDepth: number;
+} {
+  if (shape === "conical") {
+    return {
+      profile: [
+        { z: -0.43, radius: 0.88 },
+        { z: -0.28, radius: 0.66 },
+        { z: -0.18, radius: 0.72 },
+        { z: -0.03, radius: 0.46 },
+        { z: 0.06, radius: 0.52 },
+        { z: 0.19, radius: 0.3 },
+        { z: 0.27, radius: 0.34 },
+        { z: 0.42, radius: 0.1 },
+      ],
+      lobeCount: 6,
+      lobeDepth: 0.055,
+    };
+  }
+
+  if (shape === "spreading") {
+    return {
+      profile: [
+        { z: -0.8, radius: 0.3 },
+        { z: -0.57, radius: 0.78 },
+        { z: -0.25, radius: 1.05 },
+        { z: 0.1, radius: 1.1 },
+        { z: 0.42, radius: 0.88 },
+        { z: 0.72, radius: 0.5 },
+        { z: 0.9, radius: 0.2 },
+      ],
+      lobeCount: 7,
+      lobeDepth: 0.075,
+    };
+  }
+
+  if (shape === "compact") {
+    return {
+      profile: [
+        { z: -0.8, radius: 0.3 },
+        { z: -0.55, radius: 0.72 },
+        { z: -0.15, radius: 0.94 },
+        { z: 0.25, radius: 0.9 },
+        { z: 0.62, radius: 0.61 },
+        { z: 0.88, radius: 0.22 },
+      ],
+      lobeCount: 5,
+      lobeDepth: 0.09,
+    };
+  }
+
+  if (shape === "columnar") {
+    return {
+      profile: [
+        { z: -0.88, radius: 0.28 },
+        { z: -0.55, radius: 0.55 },
+        { z: -0.08, radius: 0.63 },
+        { z: 0.36, radius: 0.5 },
+        { z: 0.73, radius: 0.26 },
+      ],
+      lobeCount: 5,
+      lobeDepth: 0.045,
+    };
+  }
+
+  return {
+    profile: [
+      { z: -0.82, radius: 0.34 },
+      { z: -0.58, radius: 0.72 },
+      { z: -0.2, radius: 1 },
+      { z: 0.2, radius: 0.98 },
+      { z: 0.56, radius: 0.76 },
+      { z: 0.83, radius: 0.37 },
+    ],
+    lobeCount: 6,
+    lobeDepth: 0.075,
+  };
+}
+
+function createStylizedCrownGeometry(
+  shape: TreeShape,
+) {
+  const {
+    profile,
+    lobeCount,
+    lobeDepth,
+  } = getStylizedCrownProfile(shape);
+  const slices = 24;
+  const positions: number[] = [0, 0, shape === "conical" ? -0.5 : -1];
+  const normals: number[] = [0, 0, -1];
+  const indices: number[] = [];
+
+  for (
+    let ringIndex = 0;
+    ringIndex < profile.length;
+    ringIndex += 1
+  ) {
+    const point = profile[ringIndex];
+    const previous = profile[Math.max(0, ringIndex - 1)];
+    const next = profile[Math.min(profile.length - 1, ringIndex + 1)];
+    const radiusSlope =
+      (next.radius - previous.radius) /
+      (next.z - previous.z || 1);
+
+    for (
+      let slice = 0;
+      slice < slices;
+      slice += 1
+    ) {
+      const angle = slice / slices * Math.PI * 2;
+      const scallop =
+        1 +
+        Math.cos(angle * lobeCount) *
+        lobeDepth;
+      const radius = point.radius * scallop;
+      const normalLength = Math.hypot(1, radiusSlope);
+
+      positions.push(
+        Math.cos(angle) * radius,
+        Math.sin(angle) * radius,
+        point.z,
+      );
+
+      normals.push(
+        Math.cos(angle) / normalLength,
+        Math.sin(angle) / normalLength,
+        -radiusSlope / normalLength,
+      );
+    }
+  }
+
+  const bottomIndex = 0;
+  const firstRing = 1;
+  const topIndex =
+    firstRing +
+    profile.length * slices;
+  const topZ =
+    shape === "conical" ? 0.5 : 1;
+
+  positions.push(0, 0, topZ);
+  normals.push(0, 0, 1);
+
+  for (
+    let slice = 0;
+    slice < slices;
+    slice += 1
+  ) {
+    const nextSlice =
+      (slice + 1) % slices;
+
+    indices.push(
+      bottomIndex,
+      firstRing + nextSlice,
+      firstRing + slice,
+    );
+
+    for (
+      let ringIndex = 0;
+      ringIndex < profile.length - 1;
+      ringIndex += 1
+    ) {
+      const lower =
+        firstRing +
+        ringIndex * slices +
+        slice;
+      const lowerNext =
+        firstRing +
+        ringIndex * slices +
+        nextSlice;
+      const upper = lower + slices;
+      const upperNext = lowerNext + slices;
+
+      indices.push(
+        lower,
+        lowerNext,
+        upperNext,
+        lower,
+        upperNext,
+        upper,
+      );
+    }
+
+    const lastRing =
+      firstRing +
+      (profile.length - 1) * slices;
+
+    indices.push(
+      topIndex,
+      lastRing + slice,
+      lastRing + nextSlice,
+    );
+  }
+
+  const positionValues =
+    new Float64Array(positions);
+  const attributes =
+    new GeometryAttributes();
+
+  attributes.position =
+    new GeometryAttribute({
+      componentDatatype: ComponentDatatype.DOUBLE,
+      componentsPerAttribute: 3,
+      values: positionValues,
+    });
+
+  attributes.normal =
+    new GeometryAttribute({
+      componentDatatype: ComponentDatatype.FLOAT,
+      componentsPerAttribute: 3,
+      values: new Float32Array(normals),
+    });
+
+  return new Geometry({
+    attributes,
+    indices: new Uint16Array(indices),
+    primitiveType: PrimitiveType.TRIANGLES,
+    boundingSphere: BoundingSphere.fromVertices(positions),
+  });
 }
 
 function getPickedId(
@@ -606,7 +1228,7 @@ function getPickedId(
   }
 
   return id.replace(
-    /-(?:roof|roof-outline|label)$/,
+    /(?:-(?:roof|roof-outline|label)|--(?:crown-lobe|branch|conifer-tier)-\d+)$/,
     "",
   );
 }
@@ -642,6 +1264,7 @@ export default function MapView(
     hoveredTreeId,
     onSelectTree,
     onSelectLandmark,
+    onRecenter,
     recenter,
   } = props;
 
@@ -720,6 +1343,7 @@ export default function MapView(
     );
 
   const [cameraHeading, setCameraHeading] = useState(0);
+  const displayedHeadingRef = useRef(0);
 
   useEffect(() => {
     treesRef.current =
@@ -750,7 +1374,24 @@ export default function MapView(
   useEffect(() => {
     const viewer = viewerRef.current;
     if (!viewer || phase !== "ready") return;
-    const updateHeading = () => setCameraHeading(viewer.camera.heading);
+
+    // Cesium ne signale `camera.changed` qu'après un déplacement important
+    // par défaut (50 %). La boussole doit suivre les petites rotations aussi.
+    viewer.camera.percentageChanged = 0.01;
+    displayedHeadingRef.current = viewer.camera.heading;
+
+    const updateHeading = () => {
+      const nextHeading = viewer.camera.heading;
+      let delta = nextHeading - displayedHeadingRef.current;
+
+      // Évite le saut de rotation lorsque le cap passe de +π à -π.
+      while (delta > Math.PI) delta -= Math.PI * 2;
+      while (delta < -Math.PI) delta += Math.PI * 2;
+
+      displayedHeadingRef.current += delta;
+      setCameraHeading(displayedHeadingRef.current);
+    };
+
     updateHeading();
     return viewer.camera.changed.addEventListener(updateHeading);
   }, [phase, revision]);
@@ -788,24 +1429,27 @@ export default function MapView(
 
     const proportions = getTreeProportions(treeToFocus);
     const shape = getTreeShape(treeToFocus);
-    const crownGeometry = shape === "conical"
-      ? new CylinderGeometry({ length: 1, topRadius: 0.07, bottomRadius: 1, slices: 10, vertexFormat: PerInstanceColorAppearance.VERTEX_FORMAT })
-      : new EllipsoidGeometry({ radii: new Cartesian3(1, 1, 1), vertexFormat: PerInstanceColorAppearance.VERTEX_FORMAT });
-    const crownCentre = proportions.trunkHeight + proportions.crownHeight / 2;
+    const crownPlacement = getCrownPlacement(
+      proportions.trunkHeight,
+      proportions.crownHeight,
+      shape,
+    );
+    const crownGeometry =
+      createStylizedCrownGeometry(shape);
     const focusCrown = viewer.scene.primitives.add(new Primitive({
       geometryInstances: new GeometryInstance({
         geometry: crownGeometry,
         modelMatrix: makeTreeMatrix(
           treeToFocus,
-          crownCentre,
+          crownPlacement.centerZ,
           proportions.crownRadiusX,
           proportions.crownRadiusY,
-          shape === "conical" ? proportions.crownHeight : proportions.crownHeight / 2,
+          crownPlacement.scaleZ,
         ),
         attributes: { color: ColorGeometryInstanceAttribute.fromColor(TREE_SELECTED_COLOR) },
       }),
       appearance: new PerInstanceColorAppearance({
-        flat: true,
+        flat: false,
         translucent: false,
         closed: true,
         renderState: { depthTest: { enabled: false } },
@@ -942,6 +1586,27 @@ export default function MapView(
 
       viewer.scene.moon.show =
         false;
+
+      /*
+       * Une lumière fixe et douce rend les volumes lisibles sans
+       * dépendre de l'heure de visite ni afficher le soleil Cesium.
+       */
+      viewer.scene.light =
+        new DirectionalLight({
+          direction:
+            Cartesian3.normalize(
+              new Cartesian3(
+                0.35,
+                0.55,
+                -0.76,
+              ),
+              new Cartesian3(),
+            ),
+        });
+
+      /* Adoucit les contours fins sans modifier les proportions réelles. */
+      viewer.scene.postProcessStages.fxaa.enabled =
+        true;
 
       viewer.scene.screenSpaceCameraController.minimumZoomDistance =
         8;
@@ -1363,7 +2028,9 @@ export default function MapView(
                   ? "#a9745d"
                   : "#b88d45",
               ).withAlpha(
-                0.94,
+                building
+                  ? 1
+                  : 0.94,
               );
 
             const roof =
@@ -1372,7 +2039,9 @@ export default function MapView(
                   ? "#704738"
                   : "#7c5a2d",
               ).withAlpha(
-                0.98,
+                building
+                  ? 1
+                  : 0.98,
               );
 
             const hierarchy =
@@ -1608,12 +2277,22 @@ export default function MapView(
       new CylinderGeometry({
         length: 1,
 
-        topRadius: 1,
+        topRadius: 0.72,
 
         bottomRadius: 1,
 
-        slices: 8,
+        slices: 12,
 
+        vertexFormat:
+          PerInstanceColorAppearance.VERTEX_FORMAT,
+      });
+
+    const branchGeometry =
+      new CylinderGeometry({
+        length: 1,
+        topRadius: 0.58,
+        bottomRadius: 1,
+        slices: 8,
         vertexFormat:
           PerInstanceColorAppearance.VERTEX_FORMAT,
       });
@@ -1627,27 +2306,30 @@ export default function MapView(
             1,
           ),
 
-        stackPartitions: 7,
+        stackPartitions: 12,
 
-        slicePartitions: 10,
+        slicePartitions: 18,
 
         vertexFormat:
           PerInstanceColorAppearance.VERTEX_FORMAT,
       });
 
-    const conicalGeometry =
+    const coniferTierGeometry =
       new CylinderGeometry({
         length: 1,
-
-        topRadius: 0.07,
-
+        topRadius: 0.06,
         bottomRadius: 1,
-
-        slices: 10,
-
+        slices: 20,
         vertexFormat:
           PerInstanceColorAppearance.VERTEX_FORMAT,
       });
+
+    const crownGeometries = {
+      round: createStylizedCrownGeometry("round"),
+      columnar: createStylizedCrownGeometry("columnar"),
+      spreading: createStylizedCrownGeometry("spreading"),
+      compact: createStylizedCrownGeometry("compact"),
+    };
 
     const trunks:
       GeometryInstance[] =
@@ -1697,12 +2379,22 @@ export default function MapView(
           tree,
         );
 
-      const trunkCenter =
-        trunkHeight / 2;
+      const crownPlacement =
+        getCrownPlacement(
+          trunkHeight,
+          crownHeight,
+          shape,
+        );
 
-      const crownCenter =
-        trunkHeight +
-        crownHeight / 2;
+      const trunkLength =
+        Math.max(
+          0.5,
+          trunkHeight +
+          crownPlacement.trunkOverlap,
+        );
+
+      const trunkCenter =
+        trunkLength / 2;
 
       /*
        * Tronc
@@ -1725,10 +2417,7 @@ export default function MapView(
 
               trunkRadius,
 
-              Math.max(
-                0.5,
-                trunkHeight,
-              ),
+              trunkLength,
             ),
 
           attributes: {
@@ -1740,49 +2429,198 @@ export default function MapView(
         }),
       );
 
+      getMainBranches(
+        tree,
+        shape,
+        trunkHeight,
+        crownHeight,
+        crownRadiusX,
+        crownRadiusY,
+      ).forEach(
+        (branch, branchIndex) => {
+          const direction =
+            getTreeLocalDirection(
+              tree,
+              branch.heading,
+              branch.pitch,
+            );
+
+          trunks.push(
+            new GeometryInstance({
+              id: `${tree.id}--branch-${branchIndex + 1}`,
+              geometry: branchGeometry,
+              modelMatrix: makeTreeMatrix(
+                tree,
+                branch.startZ +
+                direction.z *
+                branch.length / 2,
+                branch.radius,
+                branch.radius,
+                branch.length,
+                direction.x *
+                branch.length / 2,
+                direction.y *
+                branch.length / 2,
+                branch.heading,
+                branch.pitch,
+              ),
+              attributes: {
+                color:
+                  ColorGeometryInstanceAttribute.fromColor(
+                    TREE_TRUNK_COLOR,
+                  ),
+              },
+            }),
+          );
+        },
+      );
+
       /*
        * Houppier
        */
-      crowns[
-        shape
-      ].push(
-        new GeometryInstance({
-          id:
-            tree.id,
-
-          geometry:
-            shape ===
-              "conical"
-              ? conicalGeometry
-              : ellipsoidGeometry,
-
-          modelMatrix:
-            makeTreeMatrix(
-              tree,
-
-              crownCenter,
-
-              crownRadiusX,
-
-              crownRadiusY,
-
-              shape ===
-                "conical"
-                ? crownHeight
-                : crownHeight /
-                2,
-            ),
-
-          attributes: {
-            color:
-              ColorGeometryInstanceAttribute.fromColor(
-                getBaseCrownColor(
+      if (shape === "conical") {
+        getConiferTiers(
+          tree,
+          crownRadiusX,
+          crownRadiusY,
+          trunkHeight,
+          crownHeight,
+        ).forEach(
+          (tier, tierIndex) => {
+            crowns[shape].push(
+              new GeometryInstance({
+                id: tierIndex === 0
+                  ? tree.id
+                  : coniferTierId(tree.id, tierIndex),
+                geometry: coniferTierGeometry,
+                modelMatrix: makeTreeMatrix(
                   tree,
+                  tier.centerZ,
+                  tier.scaleX,
+                  tier.scaleY,
+                  tier.scaleZ,
+                  tier.x,
+                  tier.y,
                 ),
-              ),
+                attributes: {
+                  color:
+                    ColorGeometryInstanceAttribute.fromColor(
+                      getCrownLayerColor(
+                        tree,
+                        getCrownPartShade(
+                          tree,
+                          shape,
+                          tierIndex,
+                        ),
+                      ),
+                    ),
+                },
+              }),
+            );
           },
-        }),
-      );
+        );
+      } else {
+        crowns[shape].push(
+          new GeometryInstance({
+            id:
+              tree.id,
+
+            geometry:
+              crownGeometries[shape],
+
+            modelMatrix:
+              makeTreeMatrix(
+                tree,
+
+                crownPlacement.centerZ,
+
+                hasOrganicCrownLobes(
+                  shape,
+                )
+                  ? crownRadiusX * 0.8
+                  : crownRadiusX,
+
+                hasOrganicCrownLobes(
+                  shape,
+                )
+                  ? crownRadiusY * 0.8
+                  : crownRadiusY,
+
+                hasOrganicCrownLobes(
+                  shape,
+                )
+                  ? crownPlacement.scaleZ * 0.88
+                  : crownPlacement.scaleZ,
+              ),
+
+            attributes: {
+              color:
+                ColorGeometryInstanceAttribute.fromColor(
+                  getCrownLayerColor(
+                    tree,
+                    getCrownPartShade(tree, shape, 0),
+                  ),
+                ),
+            },
+          }),
+        );
+      }
+
+      if (
+        hasOrganicCrownLobes(
+          shape,
+        )
+      ) {
+        /*
+         * Trois volumes décalés donnent aux feuillus
+         * un bord moins géométrique. Ils restent attachés à la
+         * même Primitive, donc le coût de rendu demeure faible.
+         */
+        getOrganicCrownLobes(
+          tree,
+          crownRadiusX,
+          crownRadiusY,
+          crownHeight,
+          crownPlacement.scaleZ,
+        ).forEach(
+          (lobe, lobeIndex) => {
+            crowns[shape].push(
+              new GeometryInstance({
+                id: crownLobeId(
+                  tree.id,
+                  lobeIndex + 1,
+                ),
+
+                geometry: ellipsoidGeometry,
+
+                modelMatrix: makeTreeMatrix(
+                  tree,
+                  crownPlacement.centerZ + lobe.z,
+                  lobe.scaleX,
+                  lobe.scaleY,
+                  lobe.scaleZ,
+                  lobe.x,
+                  lobe.y,
+                ),
+
+                attributes: {
+                  color:
+                    ColorGeometryInstanceAttribute.fromColor(
+                      getCrownLayerColor(
+                        tree,
+                        getCrownPartShade(
+                          tree,
+                          shape,
+                          lobeIndex + 1,
+                        ),
+                      ),
+                    ),
+                },
+              }),
+            );
+          },
+        );
+      }
     }
 
     if (
@@ -1796,7 +2634,7 @@ export default function MapView(
           appearance:
             new PerInstanceColorAppearance(
               {
-                flat: true,
+                flat: false,
 
                 translucent:
                   false,
@@ -1848,7 +2686,7 @@ export default function MapView(
           appearance:
             new PerInstanceColorAppearance(
               {
-                flat: true,
+                flat: false,
 
                 /*
                  * Pas de transparence :
@@ -1981,23 +2819,6 @@ export default function MapView(
             continue;
           }
 
-          let attributes;
-
-          try {
-            attributes =
-              primitive.getGeometryInstanceAttributes(
-                tree.id,
-              );
-          } catch {
-            continue;
-          }
-
-          if (
-            !attributes?.color
-          ) {
-            continue;
-          }
-
           const highlight =
             treeHighlight(
               tree,
@@ -2008,22 +2829,21 @@ export default function MapView(
               highlightedTaxon,
             );
 
-          let color =
-            getBaseCrownColor(
-              tree,
-            );
+          let highlightColor:
+            | Color
+            | null = null;
 
           if (
             highlight ===
             "selected"
           ) {
-            color =
+            highlightColor =
               TREE_SELECTED_COLOR;
           } else if (
             highlight ===
             "hovered"
           ) {
-            color =
+            highlightColor =
               TREE_HOVER_COLOR;
           } else if (
             highlight ===
@@ -2034,17 +2854,53 @@ export default function MapView(
              * plus discrète de l'ambre
              * de l'arbre survolé.
              */
-            color =
+            highlightColor =
               getRelatedCrownColor(
                 tree,
               );
           }
 
-          attributes.color =
-            ColorGeometryInstanceAttribute.toValue(
-              color,
-              attributes.color,
+          const instanceIds =
+            getCrownInstanceIds(
+              tree,
+              shape,
             );
+
+          for (
+            const [partIndex, instanceId] of
+            instanceIds.entries()
+          ) {
+            let attributes;
+
+            try {
+              attributes =
+                primitive.getGeometryInstanceAttributes(
+                  instanceId,
+                );
+            } catch {
+              continue;
+            }
+
+            if (
+              !attributes?.color
+            ) {
+              continue;
+            }
+
+            attributes.color =
+              ColorGeometryInstanceAttribute.toValue(
+                highlightColor ??
+                getCrownLayerColor(
+                  tree,
+                  getCrownPartShade(
+                    tree,
+                    shape,
+                    partIndex,
+                  ),
+                ),
+                attributes.color,
+              );
+          }
         }
 
         viewer.scene.requestRender();
@@ -2162,31 +3018,30 @@ export default function MapView(
     };
   }, [trees, hoveredTreeId, mapHoveredTreeId, plan, revision]);
 
-  /*
-   * Recentrage quand le plan change.
-   */
-  useEffect(() => {
-    const viewer =
-      viewerRef.current;
-
-    if (
-      !viewer ||
-      !plan
-    ) {
-      return;
-    }
-
-    setParkView(viewer, plan.bbox, viewMode);
-
-    viewer.scene.requestRender();
-  }, [plan, viewMode]);
-
   useEffect(() => {
     const viewer = viewerRef.current;
     if (!viewer) return;
     setParkView(viewer, plan?.bbox ?? PARK_PLAN_BOUNDS, viewMode);
     viewer.scene.requestRender();
-  }, [viewMode, plan, revision]);
+  }, [plan, revision]);
+
+  /*
+   * Le passage 2D/3D ne doit pas modifier le zoom ni le centre courant.
+   * On ne change donc que l'inclinaison de la caméra.
+   */
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    if (!viewer) return;
+
+    viewer.camera.setView({
+      orientation: {
+        heading: viewer.camera.heading,
+        pitch: CesiumMath.toRadians(viewMode === "2d" ? -87 : -70),
+        roll: viewer.camera.roll,
+      },
+    });
+    viewer.scene.requestRender();
+  }, [viewMode]);
 
   /*
    * Bouton "Recentrer".
@@ -2258,6 +3113,9 @@ export default function MapView(
       />
 
       <div className={`map-navigation ${selectedTree ? "is-tree-open" : ""}`} aria-label="Navigation de la carte">
+        <button type="button" className="map-recenter-button" onClick={onRecenter} aria-label="Recentrer la carte sur le parc" title="Recentrer sur le parc">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7.5" /><circle cx="12" cy="12" r="2" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3" /></svg>
+        </button>
         <button type="button" className="map-compass" onClick={orientNorth} aria-label="Orienter la carte vers le nord">
           <span className="compass-dial" aria-hidden="true" style={{ transform: `rotate(${-cameraHeading}rad)` }}>
             <svg viewBox="0 0 24 24"><path d="m12 2 5 14-5-3-5 3L12 2Z" /><path d="M12 9v13" /></svg><span>N</span>

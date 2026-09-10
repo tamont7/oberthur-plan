@@ -214,7 +214,7 @@ h1 { margin-bottom: 0; color: #17372c; font-family: "Fraunces", Georgia, serif; 
 :focus-visible { outline: 3px solid #255bca; outline-offset: 3px; }
 button, a, summary { touch-action: manipulation; }
 button:disabled { cursor: not-allowed; opacity: .65; }
-button:not(.tree-foliage):not(.tree-list-item):not(.focus-tree-button):not(.park-choice):not(.mobile-panel-direction):not(.detail-toggle):not(.map-control-button):not(.map-dimension-button):not(.map-compass):not(.brand):not(.icon-button):not(.text-button):not(.filter-chip):not(.mobile-sheet-trigger):not(.species-option):not(.sort-option):not(.info-button):not(.search-clear) { min-height: 44px; border: 1px solid #c1d3c5; border-radius: 8px; padding: 8px 12px; background: #fff; color: #1e503c; }
+button:not(.tree-foliage):not(.tree-list-item):not(.focus-tree-button):not(.park-choice):not(.mobile-panel-direction):not(.detail-toggle):not(.map-control-button):not(.map-recenter-button):not(.map-dimension-button):not(.map-compass):not(.brand):not(.icon-button):not(.text-button):not(.filter-chip):not(.mobile-sheet-trigger):not(.species-option):not(.sort-option):not(.info-button):not(.search-clear) { min-height: 44px; border: 1px solid #c1d3c5; border-radius: 8px; padding: 8px 12px; background: #fff; color: #1e503c; }
 .app-shell { height: 100dvh; }
 .brand { border: 0; padding: 0; text-align: left; background: rgb(251 252 249 / .94); border-radius: 24px; padding-right: 12px; }
 .map-navigation { position: absolute; z-index: 3; right: 20px; bottom: 34px; display: grid; justify-items: center; gap: 8px; }
@@ -222,11 +222,14 @@ button:not(.tree-foliage):not(.tree-list-item):not(.focus-tree-button):not(.park
 .map-control-button { display: grid; place-items: center; width: 36px; height: 34px; border: 0; padding: 0; color: #244a39; background: transparent; font-size: 24px; font-weight: 400; line-height: 1; }
 .map-control-button + .map-control-button { border-top: 1px solid #dce4da; }
 .map-control-button:hover { background: #edf4ee; }
+.map-recenter-button { display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid rgba(23, 55, 44, .16); border-radius: 50%; padding: 0; color: #315746; background: rgb(255 255 255 / .96); box-shadow: 0 3px 13px rgba(12, 42, 29, .12); }
+.map-recenter-button:hover { background: #edf4ee; }
+.map-recenter-button svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-width: 1.6; }
 .map-compass { position: relative; display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid rgba(23, 55, 44, .16); border-radius: 50%; padding: 0; color: #315746; background: rgb(255 255 255 / .96); box-shadow: 0 3px 13px rgba(12, 42, 29, .12); }
 .map-compass:hover { background: #edf4ee; }
 .map-dimension-button { display: grid; place-items: center; width: 36px; height: 34px; border: 1px solid rgba(23, 55, 44, .16); border-radius: 8px; padding: 0; color: #fff; background: #1e503c; box-shadow: 0 3px 13px rgba(12, 42, 29, .12); font-family: "DM Mono", monospace; font-size: 11px; font-weight: 700; }
 .map-dimension-button:hover { background: #2f7657; }
-.compass-dial { position: absolute; inset: 0; transition: transform .18s ease; }
+.compass-dial { position: absolute; inset: 0; transition: transform .08s linear; }
 .map-compass svg { position: absolute; top: 7px; left: 7px; width: 21px; height: 21px; fill: #2f7657; stroke: #2f7657; stroke-linecap: round; stroke-width: 1.4; }
 .compass-dial span { position: absolute; top: 2px; left: 50%; color: #315746; font-family: "DM Mono", monospace; font-size: 8px; font-weight: 700; transform: translateX(-50%); }
 .park-switcher { position: absolute; z-index: 3; top: 24px; right: 26px; display: inline-flex; gap: 3px; padding: 3px; border: 1px solid rgba(23, 55, 44, .14); border-radius: 11px; background: rgb(255 255 255 / .94); box-shadow: 0 4px 15px rgba(12, 42, 29, .1); }
