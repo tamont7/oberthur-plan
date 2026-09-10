@@ -132,9 +132,26 @@ h1 { margin-bottom: 0; color: #17372c; font-family: "Fraunces", Georgia, serif; 
 .tree-summary { display: flex; align-items: baseline; gap: 7px; margin: 0; color: #6f897b; font-size: 12px; }
 .tree-summary span { color: #788e82; font-family: "DM Mono", monospace; font-size: 9px; letter-spacing: .055em; text-transform: uppercase; }
 .tree-summary strong { color: #315746; font-size: 12px; font-weight: 650; }
+.detail-footer { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
+.detail-footer .detail-toggle { margin-left: auto; }
 .detail-toggle { flex: 0 0 auto; border: 0; padding: 2px 0; color: #789083; background: transparent; font-size: 10px; font-weight: 650; text-decoration: underline; text-decoration-color: #c7d6ca; text-underline-offset: 3px; }
 .detail-toggle:hover { color: #315746; text-decoration-color: currentColor; }
 .tree-detail-extra { margin-top: 12px; padding-top: 12px; border-top: 1px solid #e4ebe3; }
+.tree-foliage { display: flex; gap: 8px; width: 96px; height: 48px; border: 0; border-radius: 6px; padding: 0; color: #416747; background: #f3f7ef; }
+.tree-foliage:hover { background: #e5eddd; }
+.tree-foliage svg { display: block; width: 43px; height: 48px; }
+.botanical-dialog { box-sizing: border-box; width: min(560px, calc(100vw - 24px)); max-height: calc(100dvh - 32px); overflow: auto; border: 1px solid #d5e0d6; border-radius: 14px; padding: 20px; color: #315746; background: #fbfcf9; box-shadow: 0 18px 50px rgb(20 50 38 / .25); touch-action: pan-y; }
+.botanical-dialog::backdrop { background: rgb(17 42 31 / .45); }
+.botanical-dialog-heading { display: flex; justify-content: space-between; gap: 12px; }
+.botanical-dialog-heading h2 { margin: 0; font-size: 20px; }
+.botanical-dialog-heading p { margin: 5px 0 0; font-size: 12px; font-style: italic; }
+.botanical-dialog-heading .icon-button { font-size: 26px; }
+.botanical-drawings { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 18px 0; }
+.botanical-drawings figure { min-width: 0; margin: 0; }
+.botanical-drawings svg { display: block; width: 100%; height: auto; max-height: 225px; border-radius: 10px; background: #f3f7ef; }
+.botanical-drawings figcaption { margin-top: 12px; font-size: 12px; font-weight: 600; line-height: 1.4; text-align: center; }
+.botanical-source { margin: 0; color: #64765b; font-size: 11px; line-height: 1.5; text-align: center; }
+.botanical-source a { color: #285d42; text-underline-offset: 3px; }
 .detail-description { margin-bottom: 16px; color: #496457; font-size: 13px; line-height: 1.48; }
 .tree-facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; overflow: hidden; margin: 0 0 14px; border-radius: 7px; background: #dce6dd; }
 .tree-facts div { padding: 9px 8px; background: #f5f8f4; }
@@ -156,7 +173,12 @@ h1 { margin-bottom: 0; color: #17372c; font-family: "Fraunces", Georgia, serif; 
   .mobile-sheet-trigger { position: absolute; z-index: 3; bottom: 16px; left: 50%; display: inline-flex; align-items: center; justify-content: center; gap: 12px; min-height: 44px; transform: translateX(-50%); border: 0; border-radius: 100px; padding: 10px 16px; color: #fff; background: #1e503c; box-shadow: 0 6px 20px rgba(14, 54, 37, .3); font-size: 13px; font-weight: 650; white-space: nowrap; transition: opacity .16s; }
   .mobile-sheet-trigger.is-hidden { opacity: 0; pointer-events: none; }
   .explorer-panel { position: fixed; z-index: 10; inset: auto 0 0; margin: 0; width: 100%; max-width: none; height: min(80dvh, 700px); max-height: 90dvh; border: 0; border-radius: 20px 20px 0 0; box-shadow: 0 -10px 30px rgba(20, 50, 38, .17); transition: transform .16s ease-out; }
-  .explorer-panel.is-mobile-filter { height: min(46dvh, 390px); min-height: 280px; }
+  .explorer-panel { bottom: var(--keyboard-inset, 0px); max-height: calc(var(--visible-height, 100dvh) - 12px); }
+  .explorer-panel.is-mobile-filter { height: min(46dvh, 390px); min-height: 0; }
+  .explorer-panel .search-combobox { flex-shrink: 0; }
+  .explorer-panel .species-suggestions { position: relative; inset: auto; margin: 5px 22px 0; max-height: max(44px, min(150px, calc(var(--visible-height, 100dvh) - 240px))); overscroll-behavior: contain; }
+  .explorer-panel .species-picker-menu { max-height: max(44px, min(220px, calc(var(--visible-height, 100dvh) - 200px))); }
+  .explorer-panel .filters, .explorer-panel .results-heading { flex-shrink: 0; }
   .explorer-panel:not([open]) { display: none; }
   .explorer-panel::backdrop { background: rgb(17 42 31 / .3); }
   .mobile-panel-handle { display: grid; grid-template-columns: 1fr 1fr; flex: 0 0 auto; width: 100%; height: 34px; margin: 1px 0 0; color: #8ba195; cursor: grab; touch-action: none; }
@@ -192,7 +214,7 @@ h1 { margin-bottom: 0; color: #17372c; font-family: "Fraunces", Georgia, serif; 
 :focus-visible { outline: 3px solid #255bca; outline-offset: 3px; }
 button, a, summary { touch-action: manipulation; }
 button:disabled { cursor: not-allowed; opacity: .65; }
-button:not(.tree-list-item):not(.focus-tree-button):not(.park-choice):not(.mobile-panel-direction):not(.detail-toggle):not(.map-control-button):not(.map-dimension-button):not(.map-compass):not(.brand):not(.icon-button):not(.text-button):not(.filter-chip):not(.mobile-sheet-trigger):not(.species-option):not(.sort-option):not(.info-button):not(.search-clear) { min-height: 44px; border: 1px solid #c1d3c5; border-radius: 8px; padding: 8px 12px; background: #fff; color: #1e503c; }
+button:not(.tree-foliage):not(.tree-list-item):not(.focus-tree-button):not(.park-choice):not(.mobile-panel-direction):not(.detail-toggle):not(.map-control-button):not(.map-dimension-button):not(.map-compass):not(.brand):not(.icon-button):not(.text-button):not(.filter-chip):not(.mobile-sheet-trigger):not(.species-option):not(.sort-option):not(.info-button):not(.search-clear) { min-height: 44px; border: 1px solid #c1d3c5; border-radius: 8px; padding: 8px 12px; background: #fff; color: #1e503c; }
 .app-shell { height: 100dvh; }
 .brand { border: 0; padding: 0; text-align: left; background: rgb(251 252 249 / .94); border-radius: 24px; padding-right: 12px; }
 .map-navigation { position: absolute; z-index: 3; right: 20px; bottom: 34px; display: grid; justify-items: center; gap: 8px; }
@@ -238,7 +260,10 @@ button:not(.tree-list-item):not(.focus-tree-button):not(.park-choice):not(.mobil
 .tree-list { min-height: 0; overscroll-behavior: contain; }
 .results-heading p { font-size: 11px; }
 .panel-footer { flex: 0 0 auto; padding: 12px 22px; }
-.tree-detail { bottom: 40px; max-height: calc(100dvh - 220px); overflow: auto; }
+.tree-detail { bottom: 40px; max-height: calc(100dvh - 220px); overflow: auto; touch-action: pan-y; overscroll-behavior: contain; }
+.tree-detail > .detail-topline { touch-action: none; }
+.raw-data-dialog { touch-action: pan-y; overscroll-behavior: contain; }
+.raw-data-dialog pre { margin: 0; font-size: 11px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
 .tree-detail h2:focus { outline: none; }
 .tree-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .tree-facts dt { font-size: 10px; }
@@ -268,3 +293,6 @@ button:not(.tree-list-item):not(.focus-tree-button):not(.park-choice):not(.mobil
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
+
+.tree-foliage.is-leaf-only { width: 43px; }
+.botanical-drawings.is-leaf-only { grid-template-columns: minmax(0, 240px); justify-content: center; }

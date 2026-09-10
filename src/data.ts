@@ -178,6 +178,7 @@ export function parseTreeData(
 
   return {
     trees,
+    features: collection.features,
     metadata:
       collection.metadata,
   };
@@ -185,6 +186,7 @@ export function parseTreeData(
 
 export type TreeData = {
   trees: Tree[];
+  features: TreeCollection["features"];
 
   metadata:
   TreeCollection["metadata"];

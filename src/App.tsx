@@ -2,6 +2,7 @@ import { Component, lazy, Suspense, useEffect, useMemo, useRef, useState, type P
 import { filterTrees, normalizeSearch, parseTreeData, TREE_COLORS, type Tree, type TreeData } from "./data";
 import { PARK_PLAN_SOURCE_URL, SOURCE_URL } from "./park";
 import { parseParkPlan, type ParkLandmark, type ParkPlan } from "./plan";
+import { TreeFoliage } from "./TreeFoliage";
 
 const DATA_URL = `${import.meta.env.BASE_URL}data/arbres-rennes.geojson`;
 const PLAN_URL = `${import.meta.env.BASE_URL}data/parc-oberthur.geojson`;
@@ -116,15 +117,18 @@ class MapBoundary extends Component<{ children: ReactNode; onRetry: () => void }
 
 function TreeDetail({
   tree,
+  rawFeature,
   count,
   onClose,
   isMobile,
 }: {
   tree: Tree;
+  rawFeature: unknown;
   count: number;
   onClose: () => void;
   isMobile: boolean;
 }) {
+  const rawDialogRef = useRef<HTMLDialogElement>(null);
   const headingRef =
     useRef<HTMLHeadingElement>(
       null,
@@ -237,24 +241,12 @@ function TreeDetail({
     <article
       className={`tree-detail ${isMobile ? "is-mobile" : ""}`}
       aria-labelledby="detail-title"
-      onPointerDown={
-        beginSwipe
-      }
-      onPointerMove={
-        moveSwipe
-      }
-      onPointerUp={
-        endSwipe
-      }
-      onPointerCancel={
-        endSwipe
-      }
       style={{
         transform:
           `translateY(${dragOffset}px)`,
       }}
     >
-      <div className="detail-topline">
+      <div className="detail-topline" onPointerDown={beginSwipe} onPointerMove={moveSwipe} onPointerUp={endSwipe} onPointerCancel={() => { touchStartY.current = null; setDragOffset(0); }}>
         <h2
           id="detail-title"
           ref={headingRef}
@@ -286,15 +278,13 @@ function TreeDetail({
             <> · ⌀ {measurements.crownDiameter} m</>
           )}
         </p>
+      </div>
 
+      <div className="detail-footer">
+        <TreeFoliage tree={tree} />
         <button
           className="detail-toggle"
-          onClick={() =>
-            setDetailsOpen(
-              (open) =>
-                !open,
-            )
-          }
+          onClick={() => setDetailsOpen((open) => !open)}
           aria-expanded={detailsOpen}
         >
           {detailsOpen ? "Réduire" : "Détails"}
@@ -451,56 +441,6 @@ function TreeDetail({
               </dd>
             </div>
 
-            <div>
-              <dt>
-                Plantation
-              </dt>
-
-              <dd>
-                {dateLabel(
-                  tree.plantedAt,
-                )}
-              </dd>
-            </div>
-
-            <div>
-              <dt>
-                Type de taille
-              </dt>
-
-              <dd>
-                {tree.pruning ??
-                  "Non renseigné"}
-              </dd>
-            </div>
-
-            <div>
-              <dt>
-                Remarquable
-              </dt>
-
-              <dd>
-                {tree.remarkable ===
-                  null
-                  ? "Non renseigné"
-                  : tree.remarkable
-                    ? "Oui"
-                    : "Non"}
-              </dd>
-            </div>
-
-            <div>
-              <dt>
-                Mise à jour de
-                la fiche source
-              </dt>
-
-              <dd>
-                {dateLabel(
-                  tree.updatedAt,
-                )}
-              </dd>
-            </div>
           </dl>
 
           <p className="coordinates">
@@ -513,8 +453,17 @@ function TreeDetail({
               6,
             )}
           </p>
+          <button type="button" className="detail-toggle" aria-haspopup="dialog" onClick={() => rawDialogRef.current?.showModal()}>Données brutes</button>
         </div>
       )}
+      <dialog ref={rawDialogRef} className="info-dialog raw-data-dialog" aria-labelledby="raw-data-title" onKeyDown={(event) => event.stopPropagation()}>
+        <div className="info-dialog-topline">
+          <h2 id="raw-data-title">Données brutes</h2>
+          <button type="button" className="icon-button" aria-label="Fermer les données brutes" onClick={() => rawDialogRef.current?.close()}><CloseIcon /></button>
+        </div>
+        <p>{tree.name} · Extrait GeoJSON de l’inventaire</p>
+        <pre>{JSON.stringify(rawFeature, null, 2)}</pre>
+      </dialog>
     </article>
   );
 }
@@ -627,6 +576,25 @@ export default function App() {
     } else if (!mobilePanelOpen && dialog.open) {
       dialog.close();
     }
+  }, [mobilePanelOpen, isMobile]);
+
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    const dialog = dialogRef.current;
+    if (!isMobile || !mobilePanelOpen || !viewport || !dialog) return;
+    const updateViewport = () => {
+      dialog.style.setProperty("--visible-height", `${viewport.height}px`);
+      dialog.style.setProperty("--keyboard-inset", `${Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop)}px`);
+    };
+    updateViewport();
+    viewport.addEventListener("resize", updateViewport);
+    viewport.addEventListener("scroll", updateViewport);
+    return () => {
+      viewport.removeEventListener("resize", updateViewport);
+      viewport.removeEventListener("scroll", updateViewport);
+      dialog.style.removeProperty("--visible-height");
+      dialog.style.removeProperty("--keyboard-inset");
+    };
   }, [mobilePanelOpen, isMobile]);
 
   useEffect(() => {
@@ -790,7 +758,7 @@ export default function App() {
       <div className="search-field">
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.5" /><path d="m16 16 4.2 4.2" /></svg>
         <label className="sr-only" htmlFor="tree-search">Rechercher un arbre ou une espèce</label>
-        <input id="tree-search" ref={searchRef} type="search" value={query} aria-controls="species-suggestions" aria-expanded={showSpeciesSuggestions} onFocus={() => setSearchSuggestionsOpen(true)} onBlur={() => window.setTimeout(() => setSearchSuggestionsOpen(false), 120)} onChange={(event) => updateSearch(event.target.value)} placeholder="Arbre ou espèce…" />
+        <input id="tree-search" ref={searchRef} type="search" enterKeyHint="done" value={query} aria-controls="species-suggestions" aria-expanded={showSpeciesSuggestions} onFocus={() => setSearchSuggestionsOpen(true)} onBlur={() => window.setTimeout(() => setSearchSuggestionsOpen(false), 120)} onChange={(event) => updateSearch(event.target.value)} onKeyDown={(event) => { if (isMobile && event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); setSearchSuggestionsOpen(false); setMobilePanelOpen(false); } }} placeholder="Arbre ou espèce…" />
         {query && <button type="button" className="search-clear" onMouseDown={(event) => event.preventDefault()} onClick={clearSearch} aria-label="Effacer la recherche"><CloseIcon /></button>}
       </div>
       {showSpeciesSuggestions && <div className="species-suggestions" id="species-suggestions" aria-label="Suggestions d’espèces">
@@ -856,7 +824,7 @@ export default function App() {
           <i className="park-choice-symbol thabor" aria-hidden="true" /><span>Thabor</span>
         </button>
       </div>
-      {!planOnly && selectedTree && <TreeDetail tree={selectedTree} count={speciesStats.get(selectedTree.species)?.count ?? 1} onClose={closeDetail} isMobile={isMobile} />}
+      {!planOnly && selectedTree && <TreeDetail key={selectedTree.id} tree={selectedTree} rawFeature={data?.features.find((feature) => feature.id === selectedTree.id)} count={speciesStats.get(selectedTree.species)?.count ?? 1} onClose={closeDetail} isMobile={isMobile} />}
       {!planOnly && selectedLandmark && <LandmarkDetail landmark={selectedLandmark} onClose={closeLandmark} />}
       {!planOnly && <button ref={listTriggerRef} className={`mobile-sheet-trigger ${selectedTree ? "is-hidden" : ""}`} onClick={() => openMobilePanel("filter")}
           aria-haspopup="dialog" aria-expanded={mobilePanelOpen} aria-controls="mobile-explorer">
