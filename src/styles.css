@@ -128,12 +128,12 @@ h1 { margin-bottom: 0; color: #17372c; font-family: "Fraunces", Georgia, serif; 
 .scientific-name { margin: 0 0 11px; color: #6f897b; font-family: Georgia, serif; font-size: 12px; font-style: italic; }
 .scientific-name a { color: inherit; text-decoration-color: #b4c7bb; text-underline-offset: 3px; }
 .scientific-name a:hover { color: #22563f; text-decoration-color: currentColor; }
-.tree-summary { display: flex; align-items: baseline; gap: 7px; margin: 4px 0 8px; color: #6f897b; font-size: 12px; }
+.tree-summary-line { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 4px 0 8px; }
+.tree-summary { display: flex; align-items: baseline; gap: 7px; margin: 0; color: #6f897b; font-size: 12px; }
 .tree-summary span { color: #788e82; font-family: "DM Mono", monospace; font-size: 9px; letter-spacing: .055em; text-transform: uppercase; }
 .tree-summary strong { color: #315746; font-size: 12px; font-weight: 650; }
-.detail-toggle { display: inline-flex; align-items: center; gap: 6px; border: 0; padding: 1px 0; color: #2f7657; background: transparent; font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif; font-size: 12px; font-weight: 650; text-align: left; }
-.detail-toggle:hover { color: #174b35; text-decoration: underline; text-decoration-color: #aac9b5; text-underline-offset: 3px; }
-.detail-toggle-mark { display: grid; place-items: center; width: 15px; height: 15px; border: 1px solid #aac9b5; border-radius: 50%; font-size: 14px; font-weight: 400; line-height: 1; }
+.detail-toggle { flex: 0 0 auto; border: 0; padding: 2px 0; color: #789083; background: transparent; font-size: 10px; font-weight: 650; text-decoration: underline; text-decoration-color: #c7d6ca; text-underline-offset: 3px; }
+.detail-toggle:hover { color: #315746; text-decoration-color: currentColor; }
 .tree-detail-extra { margin-top: 12px; padding-top: 12px; border-top: 1px solid #e4ebe3; }
 .detail-description { margin-bottom: 16px; color: #496457; font-size: 13px; line-height: 1.48; }
 .tree-facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; overflow: hidden; margin: 0 0 14px; border-radius: 7px; background: #dce6dd; }
@@ -192,7 +192,7 @@ h1 { margin-bottom: 0; color: #17372c; font-family: "Fraunces", Georgia, serif; 
 :focus-visible { outline: 3px solid #255bca; outline-offset: 3px; }
 button, a, summary { touch-action: manipulation; }
 button:disabled { cursor: not-allowed; opacity: .65; }
-button:not(.tree-list-item):not(.focus-tree-button):not(.park-choice):not(.mobile-panel-direction):not(.map-control-button):not(.map-dimension-button):not(.map-compass):not(.brand):not(.icon-button):not(.text-button):not(.filter-chip):not(.mobile-sheet-trigger):not(.species-option):not(.sort-option):not(.info-button):not(.search-clear) { min-height: 44px; border: 1px solid #c1d3c5; border-radius: 8px; padding: 8px 12px; background: #fff; color: #1e503c; }
+button:not(.tree-list-item):not(.focus-tree-button):not(.park-choice):not(.mobile-panel-direction):not(.detail-toggle):not(.map-control-button):not(.map-dimension-button):not(.map-compass):not(.brand):not(.icon-button):not(.text-button):not(.filter-chip):not(.mobile-sheet-trigger):not(.species-option):not(.sort-option):not(.info-button):not(.search-clear) { min-height: 44px; border: 1px solid #c1d3c5; border-radius: 8px; padding: 8px 12px; background: #fff; color: #1e503c; }
 .app-shell { height: 100dvh; }
 .brand { border: 0; padding: 0; text-align: left; background: rgb(251 252 249 / .94); border-radius: 24px; padding-right: 12px; }
 .map-navigation { position: absolute; z-index: 3; right: 20px; bottom: 34px; display: grid; justify-items: center; gap: 8px; }

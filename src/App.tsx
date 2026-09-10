@@ -272,47 +272,34 @@ function TreeDetail({
         </button>
       </div>
 
-      <p className="tree-summary">
-        {tree.height != null && (
-          <>↕ {tree.height} m</>
-        )}
+      <div className="tree-summary-line">
+        <p className="tree-summary">
+          {tree.height != null && (
+            <>↕ {tree.height} m</>
+          )}
 
-        {tree.circumference != null && (
-          <> · ⟳ {tree.circumference} cm</>
-        )}
+          {tree.circumference != null && (
+            <> · ⟳ {tree.circumference} cm</>
+          )}
 
-        {measurements.crownDiameter != null && (
-          <> · ⌀ {measurements.crownDiameter} m</>
-        )}
-      </p>
+          {measurements.crownDiameter != null && (
+            <> · ⌀ {measurements.crownDiameter} m</>
+          )}
+        </p>
 
-      <button
-        className="detail-toggle"
-        onClick={() =>
-          setDetailsOpen(
-            (open) =>
-              !open,
-          )
-        }
-        aria-expanded={
-          detailsOpen
-        }
-      >
-        <span>
-          {detailsOpen
-            ? "Réduire"
-            : "Voir la fiche"}
-        </span>
-
-        <span
-          className="detail-toggle-mark"
-          aria-hidden="true"
+        <button
+          className="detail-toggle"
+          onClick={() =>
+            setDetailsOpen(
+              (open) =>
+                !open,
+            )
+          }
+          aria-expanded={detailsOpen}
         >
-          {detailsOpen
-            ? "−"
-            : "+"}
-        </span>
-      </button>
+          {detailsOpen ? "Réduire" : "Détails"}
+        </button>
+      </div>
 
       {detailsOpen && (
         <div className="tree-detail-extra">
