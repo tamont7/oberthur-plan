@@ -27,6 +27,7 @@ import {
   Quaternion,
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
+  ShowGeometryInstanceAttribute,
   Transforms,
   TranslationRotationScale,
   Viewer,
@@ -41,6 +42,7 @@ import {
 import { PARK_PLAN_BOUNDS } from "./park";
 
 import {
+  isPointInPark,
   isParkLandmark,
   type ParkLandmark,
   type ParkPlan,
@@ -49,7 +51,9 @@ import {
 type MapViewProps = {
   trees: Tree[];
   plan: ParkPlan | null;
+  parkId: string;
   visibleTrees: Tree[];
+  interactiveTrees: Tree[];
   selectedTree: Tree | null;
   focusTreeId: string | null;
   focusRequest: number;
@@ -98,6 +102,21 @@ type UserLocation = {
   longitude: number;
   latitude: number;
 };
+
+const MAX_LOCATION_DISTANCE_FROM_PARK_METRES = 250;
+
+function isNearCurrentPark(location: UserLocation, plan: ParkPlan | null) {
+  if (plan && isPointInPark(plan, [location.longitude, location.latitude])) return true;
+
+  const [west, south, east, north] = plan?.bbox ?? PARK_PLAN_BOUNDS;
+  const nearestLongitude = Math.min(east, Math.max(west, location.longitude));
+  const nearestLatitude = Math.min(north, Math.max(south, location.latitude));
+  const latitudeFactor = Math.cos(CesiumMath.toRadians(location.latitude));
+  const eastWestDistance = (location.longitude - nearestLongitude) * 111_320 * latitudeFactor;
+  const northSouthDistance = (location.latitude - nearestLatitude) * 111_320;
+
+  return Math.hypot(eastWestDistance, northSouthDistance) <= MAX_LOCATION_DISTANCE_FROM_PARK_METRES;
+}
 
 const PLAN_HEIGHT = 0.25;
 
@@ -1424,8 +1443,16 @@ export default function MapView(
       ? props.visibleTrees
       : [];
 
+  const interactiveTrees =
+    Array.isArray(
+      props.interactiveTrees,
+    )
+      ? props.interactiveTrees
+      : visibleTrees;
+
   const {
     plan,
+    parkId,
     selectedTree,
     focusTreeId,
     focusRequest,
@@ -1463,6 +1490,15 @@ export default function MapView(
       >
     >({});
 
+  const trunkPrimitiveRef =
+    useRef<Primitive | null>(null);
+
+  const trunkInstanceIdsByTreeRef =
+    useRef<Map<string, string[]>>(new Map());
+
+  const treeVisibilityByIdRef =
+    useRef<Map<string, boolean>>(new Map());
+
   const treeShapeByIdRef =
     useRef<
       Map<
@@ -1480,7 +1516,7 @@ export default function MapView(
 
   const visibleTreesRef =
     useRef<Tree[]>(
-      visibleTrees,
+      interactiveTrees,
     );
 
   const planRef =
@@ -1504,6 +1540,8 @@ export default function MapView(
       "error"
     >("loading");
 
+  const [contentReady, setContentReady] = useState(false);
+
   const [
     mapHoveredTreeId,
     setMapHoveredTreeId,
@@ -1522,7 +1560,7 @@ export default function MapView(
   const locationWatchRef = useRef<number | null>(null);
   const shouldCenterOnLocationRef = useRef(false);
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
-  const [locationStatus, setLocationStatus] = useState<"idle" | "locating" | "error">("idle");
+  const [locationStatus, setLocationStatus] = useState<"idle" | "locating" | "too-far" | "error">("idle");
 
   useEffect(() => () => {
     if (locationWatchRef.current !== null) navigator.geolocation.clearWatch(locationWatchRef.current);
@@ -1557,7 +1595,7 @@ export default function MapView(
       trees;
 
     visibleTreesRef.current =
-      visibleTrees;
+      interactiveTrees;
 
     planRef.current =
       plan;
@@ -1571,7 +1609,7 @@ export default function MapView(
       onSelectLandmark;
   }, [
     trees,
-    visibleTrees,
+    interactiveTrees,
     plan,
     onSelectTree,
     onSelectLandmark,
@@ -2101,6 +2139,12 @@ export default function MapView(
       crownPrimitivesRef.current =
         {};
 
+      trunkPrimitiveRef.current = null;
+
+      trunkInstanceIdsByTreeRef.current.clear();
+
+      treeVisibilityByIdRef.current.clear();
+
       treeShapeByIdRef.current.clear();
 
       crownColorStateByTreeRef.current.clear();
@@ -2465,6 +2509,14 @@ export default function MapView(
     crownPrimitivesRef.current =
       {};
 
+    trunkPrimitiveRef.current = null;
+
+    trunkInstanceIdsByTreeRef.current =
+      new Map();
+
+    treeVisibilityByIdRef.current =
+      new Map();
+
     treeShapeByIdRef.current =
       new Map();
 
@@ -2566,13 +2618,10 @@ export default function MapView(
     for (
       const tree of trees
     ) {
-      if (
-        !visibleIds.has(
+      const isVisible =
+        visibleIds.has(
           tree.id,
-        )
-      ) {
-        continue;
-      }
+        );
 
       const shape =
         getTreeShape(
@@ -2588,6 +2637,11 @@ export default function MapView(
       crownColorStateByTreeRef.current.set(
         tree.id,
         "normal",
+      );
+
+      treeVisibilityByIdRef.current.set(
+        tree.id,
+        isVisible,
       );
 
       const {
@@ -2647,18 +2701,32 @@ export default function MapView(
               ColorGeometryInstanceAttribute.fromColor(
                 TREE_TRUNK_COLOR,
               ),
+            show: new ShowGeometryInstanceAttribute(isVisible),
           },
         }),
       );
 
-      getMainBranches(
+      const branches = getMainBranches(
         tree,
         shape,
         trunkHeight,
         crownHeight,
         crownRadiusX,
         crownRadiusY,
-      ).forEach(
+      );
+
+      trunkInstanceIdsByTreeRef.current.set(
+        tree.id,
+        [
+          tree.id,
+          ...branches.map(
+            (_, branchIndex) =>
+              `${tree.id}--branch-${branchIndex + 1}`,
+          ),
+        ],
+      );
+
+      branches.forEach(
         (branch, branchIndex) => {
           const direction =
             getTreeLocalDirection(
@@ -2691,6 +2759,7 @@ export default function MapView(
                   ColorGeometryInstanceAttribute.fromColor(
                     TREE_TRUNK_COLOR,
                   ),
+                show: new ShowGeometryInstanceAttribute(isVisible),
               },
             }),
           );
@@ -2736,6 +2805,7 @@ export default function MapView(
                         ),
                       ),
                     ),
+                  show: new ShowGeometryInstanceAttribute(isVisible),
                 },
               }),
             );
@@ -2780,9 +2850,10 @@ export default function MapView(
                 ColorGeometryInstanceAttribute.fromColor(
                   getCrownLayerColor(
                     tree,
-                    getCrownPartShade(tree, shape, 0),
-                  ),
+                  getCrownPartShade(tree, shape, 0),
                 ),
+              ),
+              show: new ShowGeometryInstanceAttribute(isVisible),
             },
           }),
         );
@@ -2837,6 +2908,7 @@ export default function MapView(
                         ),
                       ),
                     ),
+                  show: new ShowGeometryInstanceAttribute(isVisible),
                 },
               }),
             );
@@ -2848,7 +2920,7 @@ export default function MapView(
     if (
       trunks.length > 0
     ) {
-      collection.add(
+      const trunkPrimitive =
         new Primitive({
           geometryInstances:
             trunks,
@@ -2874,8 +2946,14 @@ export default function MapView(
 
           releaseGeometryInstances:
             false,
-        }),
+        });
+
+      collection.add(
+        trunkPrimitive,
       );
+
+      trunkPrimitiveRef.current =
+        trunkPrimitive;
     }
 
     const shapes:
@@ -2968,6 +3046,12 @@ export default function MapView(
         crownPrimitivesRef.current =
           {};
 
+        trunkPrimitiveRef.current = null;
+
+        trunkInstanceIdsByTreeRef.current.clear();
+
+        treeVisibilityByIdRef.current.clear();
+
         treeShapeByIdRef.current.clear();
 
         crownColorStateByTreeRef.current.clear();
@@ -2975,9 +3059,141 @@ export default function MapView(
     };
   }, [
     trees,
-    visibleTrees,
     revision,
   ]);
+
+  /*
+   * Les géométries restent en mémoire : un filtre ne modifie que l'attribut
+   * `show` des instances concernées, au lieu de reconstruire la scène 3D.
+   */
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    if (!viewer) return;
+
+    const visibleIds = new Set(visibleTrees.map((tree) => tree.id));
+
+    const setVisible = (
+      primitive: Primitive | null | undefined,
+      instanceId: string,
+      isVisible: boolean,
+    ) => {
+      if (!primitive) return;
+
+      try {
+        const attributes = primitive.getGeometryInstanceAttributes(instanceId);
+        if (attributes?.show) {
+          attributes.show = ShowGeometryInstanceAttribute.toValue(
+            isVisible,
+            attributes.show,
+          );
+        }
+      } catch {
+        // Une primitive en cours d'initialisation sera reprise au postRender.
+      }
+    };
+
+    const applyVisibility = () => {
+      for (const tree of trees) {
+        const isVisible = visibleIds.has(tree.id);
+        if (treeVisibilityByIdRef.current.get(tree.id) === isVisible) continue;
+
+        for (const instanceId of trunkInstanceIdsByTreeRef.current.get(tree.id) ?? []) {
+          setVisible(trunkPrimitiveRef.current, instanceId, isVisible);
+        }
+
+        const shape = treeShapeByIdRef.current.get(tree.id);
+        if (shape) {
+          const crown = crownPrimitivesRef.current[shape];
+          for (const instanceId of getCrownInstanceIds(tree, shape)) {
+            setVisible(crown, instanceId, isVisible);
+          }
+        }
+
+        treeVisibilityByIdRef.current.set(tree.id, isVisible);
+      }
+
+      viewer.scene.requestRender();
+    };
+
+    const primitives = [
+      trunkPrimitiveRef.current,
+      ...Object.values(crownPrimitivesRef.current),
+    ].filter((primitive): primitive is Primitive => Boolean(primitive));
+
+    if (primitives.every((primitive) => primitive.ready)) {
+      applyVisibility();
+      return;
+    }
+
+    const removeListener = viewer.scene.postRender.addEventListener(() => {
+      const current = [
+        trunkPrimitiveRef.current,
+        ...Object.values(crownPrimitivesRef.current),
+      ].filter((primitive): primitive is Primitive => Boolean(primitive));
+
+      if (!current.every((primitive) => primitive.ready)) return;
+      removeListener();
+      applyVisibility();
+    });
+
+    viewer.scene.requestRender();
+    return () => removeListener();
+  }, [trees, visibleTrees, revision]);
+
+  /*
+   * Le viewer peut dessiner son premier fond avant que le plan et les arbres
+   * soient réellement prêts. On garde l'écran de chargement jusqu'à deux
+   * images complètes afin de ne jamais révéler une carte à moitié construite.
+   */
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    setContentReady(false);
+
+    if (!viewer || !plan || trees.length === 0) return;
+
+    const startedAt = performance.now();
+    const minimumLoadingDuration = 650;
+    const sceneSettlingDuration = 450;
+    let completeFrames = 0;
+    let readyTimer: number | undefined;
+    const removeListener = viewer.scene.postRender.addEventListener(() => {
+      const primitives = [
+        trunkPrimitiveRef.current,
+        ...Object.values(crownPrimitivesRef.current),
+      ].filter((primitive): primitive is Primitive => Boolean(primitive));
+
+      const sceneIsComplete =
+        primitives.length > 0 &&
+        primitives.every((primitive) => primitive.ready) &&
+        viewer.entities.values.length >= plan.features.length;
+
+      if (!sceneIsComplete) {
+        completeFrames = 0;
+        return;
+      }
+
+      completeFrames += 1;
+      if (completeFrames < 2) {
+        viewer.scene.requestRender();
+        return;
+      }
+
+      removeListener();
+      readyTimer = window.setTimeout(
+        () => setContentReady(true),
+        Math.max(
+          sceneSettlingDuration,
+          minimumLoadingDuration - (performance.now() - startedAt),
+        ),
+      );
+    });
+
+    viewer.scene.requestRender();
+    return () => {
+      removeListener();
+      if (readyTimer !== undefined) window.clearTimeout(readyTimer);
+    };
+  }, [trees, plan, parkId, revision]);
 
   /*
    * Hover / sélection :
@@ -3009,27 +3225,11 @@ export default function MapView(
       hoveredTree ??
       selectedTree;
 
-    const visibleIds =
-      new Set(
-        visibleTrees.map(
-          (tree) =>
-            tree.id,
-        ),
-      );
-
     const applyColors =
       () => {
         for (
           const tree of trees
         ) {
-          if (
-            !visibleIds.has(
-              tree.id,
-            )
-          ) {
-            continue;
-          }
-
           const shape =
             treeShapeByIdRef.current.get(
               tree.id,
@@ -3370,6 +3570,14 @@ export default function MapView(
     locationWatchRef.current = navigator.geolocation.watchPosition(
       ({ coords }) => {
         const nextLocation = { longitude: coords.longitude, latitude: coords.latitude };
+
+        if (!isNearCurrentPark(nextLocation, planRef.current)) {
+          shouldCenterOnLocationRef.current = false;
+          setUserLocation(null);
+          setLocationStatus("too-far");
+          return;
+        }
+
         setUserLocation(nextLocation);
         setLocationStatus("idle");
 
@@ -3417,6 +3625,20 @@ export default function MapView(
         className="map-credits"
       />
 
+      <div
+        className={`map-scene-loading ${phase === "error" || (phase === "ready" && contentReady) ? "is-ready" : ""}`}
+        aria-hidden={phase === "error" || (phase === "ready" && contentReady)}
+        role="status"
+      >
+        <div className="map-scene-loading-tree" aria-hidden="true">
+          <i className="map-scene-loading-crown is-back" />
+          <i className="map-scene-loading-crown is-front" />
+          <i className="map-scene-loading-trunk" />
+        </div>
+        <p>Préparation du parc</p>
+        <span>Plan, arbres et reliefs</span>
+      </div>
+
       <div className={`map-navigation ${selectedTree ? "is-tree-open" : ""}`} aria-label="Navigation de la carte">
         <button type="button" className={`map-locate-button ${userLocation ? "is-active" : ""}`} onClick={locateUser} aria-label="Me localiser" title="Me localiser">
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" /><circle cx="12" cy="12" r="7.5" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3" /></svg>
@@ -3437,6 +3659,7 @@ export default function MapView(
       </div>
 
       {locationStatus === "locating" && <p className="map-location-notice" role="status">Localisation en cours…</p>}
+      {locationStatus === "too-far" && <p className="map-location-notice is-error" role="alert">Vous êtes trop loin du parc affiché. La carte reste sur le parc.</p>}
       {locationStatus === "error" && <p className="map-location-notice is-error" role="alert">La position n’a pas pu être obtenue. Vérifiez l’autorisation de localisation.</p>}
 
       {tooltip && (
@@ -3470,7 +3693,7 @@ export default function MapView(
       )}
 
       {phase ===
-        "error" ? (
+        "error" && (
         <div
           className="map-notice"
           role="alert"
@@ -3495,17 +3718,6 @@ export default function MapView(
             Réessayer la carte
           </button>
         </div>
-      ) : (
-        phase ===
-        "loading" && (
-          <div
-            className="map-loading"
-            role="status"
-          >
-            Chargement du plan
-            du parc…
-          </div>
-        )
       )}
     </>
   );

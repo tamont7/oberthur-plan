@@ -33,6 +33,18 @@ function compareOptionalMeasurements(a: number | null, b: number | null) {
   return b - a;
 }
 
+/* La liste répond à chaque frappe ; la reconstruction WebGL attend une pause. */
+function useDebouncedValue<T>(value: T, delay = 180) {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedValue(value), delay);
+    return () => window.clearTimeout(timer);
+  }, [value, delay]);
+
+  return debouncedValue;
+}
+
 function wikipediaArticleUrl(title: string) {
   return `https://fr.wikipedia.org/wiki/${encodeURIComponent(title.replace(/ /g, "_"))}`;
 }
@@ -101,6 +113,19 @@ function CloseIcon() {
 function InfoIcon() {
   return <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" /><path d="M12 10.8v5.2M12 7.8h.01" /></svg>;
 }
+
+function MapSceneLoading() {
+  return <div className="map-scene-loading" role="status">
+    <div className="map-scene-loading-tree" aria-hidden="true">
+      <i className="map-scene-loading-crown is-back" />
+      <i className="map-scene-loading-crown is-front" />
+      <i className="map-scene-loading-trunk" />
+    </div>
+    <p>Préparation du parc</p>
+    <span>Plan, arbres et reliefs</span>
+  </div>;
+}
+
 function dateLabel(value: string | null) {
   return value ? new Intl.DateTimeFormat("fr-FR", { timeZone: "UTC" }).format(new Date(value)) : "Non renseignée";
 }
@@ -595,6 +620,7 @@ export default function App() {
       });
   }, [speciesStats, speciesSort]);
   const filteredTrees = useMemo(() => filterTrees(trees, query, selectedSpecies, false), [trees, query, selectedSpecies]);
+  const mapVisibleTrees = useDebouncedValue(filteredTrees);
   const visibleTrees = useMemo(() => [...filteredTrees].sort((a, b) => {
     if (speciesSort === "height") {
       const difference = compareOptionalMeasurements(a.height, b.height);
@@ -783,8 +809,8 @@ export default function App() {
   return <main className="app-shell">
     <section className="map-area" aria-label="Carte et fiche arbre">
       <MapBoundary key={mapAttempt} onRetry={() => setMapAttempt((value) => value + 1)}>
-        <Suspense fallback={<div className="map-notice" role="status">Chargement de la carte…</div>}>
-          <MapView trees={trees} plan={plan} visibleTrees={visibleTrees} selectedTree={selectedTree} focusTreeId={focusTreeId} focusRequest={focusRequest} viewMode={mapViewMode} onChangeViewMode={() => setMapViewMode((mode) => mode === "3d" ? "2d" : "3d")} isMobile={isMobile} hoveredTreeId={hoveredTreeId} onSelectTree={chooseTree} onSelectLandmark={chooseLandmark} onRecenter={() => setRecenter((value) => value + 1)} recenter={recenter} />
+        <Suspense fallback={<MapSceneLoading />}>
+          <MapView trees={trees} plan={plan} parkId={activePark} visibleTrees={mapVisibleTrees} interactiveTrees={visibleTrees} selectedTree={selectedTree} focusTreeId={focusTreeId} focusRequest={focusRequest} viewMode={mapViewMode} onChangeViewMode={() => setMapViewMode((mode) => mode === "3d" ? "2d" : "3d")} isMobile={isMobile} hoveredTreeId={hoveredTreeId} onSelectTree={chooseTree} onSelectLandmark={chooseLandmark} onRecenter={() => setRecenter((value) => value + 1)} recenter={recenter} />
         </Suspense>
       </MapBoundary>
       <header className="map-header">
