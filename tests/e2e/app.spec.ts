@@ -45,10 +45,10 @@ test("carte, crédits, filtres, fiche et recentrage", async ({ page, isMobile },
     await expect(page.getByRole("dialog")).not.toBeVisible();
     await openExplorer(page, true);
   }
-  await expect(search).toHaveValue("Erable du Japon · Acer japonicum");
+  await expect(search).toHaveValue("Erable du Japon");
   await page.getByLabel("Trier par").selectOption("scientific");
   await expect(page.getByLabel("Trier par")).toHaveValue("scientific");
-  await expect(search).toHaveValue("Acer japonicum · Erable du Japon");
+  await expect(search).toHaveValue("Erable du Japon");
   await expect(page.locator(".tree-list-item").first()).toContainText("Acer japonicum");
   await search.fill("aucun-arbre-xyz");
   await expect(page.getByText("Aucun arbre ne correspond à ces critères.")).toBeVisible();

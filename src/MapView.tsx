@@ -1471,6 +1471,10 @@ export default function MapView(
       >
     >(new Map());
 
+  /* Évite de réécrire les attributs GPU d'un arbre dont la couleur ne change pas. */
+  const crownColorStateByTreeRef =
+    useRef<Map<string, string>>(new Map());
+
   const treesRef =
     useRef<Tree[]>(trees);
 
@@ -1916,6 +1920,10 @@ export default function MapView(
             );
 
           if (tree) {
+            // Une fiche ouverte n'a pas besoin de conserver l'animation de survol.
+            setMapHoveredTreeId(null);
+            setTooltip(null);
+
             onSelectRef.current(
               tree,
             );
@@ -2094,6 +2102,8 @@ export default function MapView(
         {};
 
       treeShapeByIdRef.current.clear();
+
+      crownColorStateByTreeRef.current.clear();
 
       if (
         viewer &&
@@ -2458,6 +2468,9 @@ export default function MapView(
     treeShapeByIdRef.current =
       new Map();
 
+    crownColorStateByTreeRef.current =
+      new Map();
+
     const collection =
       new PrimitiveCollection();
 
@@ -2569,6 +2582,12 @@ export default function MapView(
       treeShapeByIdRef.current.set(
         tree.id,
         shape,
+      );
+
+      /* Les primitives sont construites avec leur couleur normale. */
+      crownColorStateByTreeRef.current.set(
+        tree.id,
+        "normal",
       );
 
       const {
@@ -2950,6 +2969,8 @@ export default function MapView(
           {};
 
         treeShapeByIdRef.current.clear();
+
+        crownColorStateByTreeRef.current.clear();
       }
     };
   }, [
@@ -3040,6 +3061,14 @@ export default function MapView(
               highlightedTaxon,
             );
 
+          if (
+            crownColorStateByTreeRef.current.get(
+              tree.id,
+            ) === highlight
+          ) {
+            continue;
+          }
+
           let highlightColor:
             | Color
             | null = null;
@@ -3112,6 +3141,11 @@ export default function MapView(
                 attributes.color,
               );
           }
+
+          crownColorStateByTreeRef.current.set(
+            tree.id,
+            highlight,
+          );
         }
 
         viewer.scene.requestRender();
@@ -3194,7 +3228,7 @@ export default function MapView(
 
     const activeHoveredTreeId = hoveredTreeId ?? mapHoveredTreeId;
     const hoveredTree = trees.find((tree) => tree.id === activeHoveredTreeId);
-    if (!hoveredTree) {
+    if (!hoveredTree || selectedTree) {
       viewer.scene.requestRender();
       return;
     }
@@ -3227,7 +3261,7 @@ export default function MapView(
         viewer.scene.requestRender();
       }
     };
-  }, [trees, hoveredTreeId, mapHoveredTreeId, plan, revision]);
+  }, [trees, hoveredTreeId, mapHoveredTreeId, selectedTree, plan, revision]);
 
   useEffect(() => {
     const viewer = viewerRef.current;

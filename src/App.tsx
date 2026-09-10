@@ -655,12 +655,12 @@ export default function App() {
     setSelectedId(tree.id);
     setSelectedLandmark(null);
     setMobilePanelOpen(false);
-    setQuery("");
-    setSelectedSpecies("");
   };
   const focusTree = (tree: Tree) => {
     setFocusTreeId(tree.id);
     setFocusRequest((request) => request + 1);
+    setSelectedId(tree.id);
+    setSelectedLandmark(null);
     setMobilePanelOpen(false);
   };
   const chooseLandmark = (landmark: ParkLandmark) => { setSelectedLandmark(landmark); setSelectedId(null); setMobilePanelOpen(false); };
@@ -672,7 +672,7 @@ export default function App() {
   const chooseSpecies = (taxon: string) => {
     setSelectedSpecies(taxon);
     const option = speciesOptions.find((item) => item.taxon === taxon);
-    setQuery(option ? speciesOptionLabel(option, speciesSort) : "");
+    setQuery(option?.vernacularName ?? "");
     setSearchSuggestionsOpen(false);
     if (isMobile) setMobilePanelOpen(false);
   };
@@ -685,13 +685,17 @@ export default function App() {
   const changeTreeSort = (nextSort: TreeSort) => {
     setSpeciesSort(nextSort);
     const option = speciesOptions.find((item) => item.taxon === selectedSpecies);
-    if (option) setQuery(speciesOptionLabel(option, nextSort));
+    if (option) setQuery(option.vernacularName);
   };
   const clearFilters = () => { clearSearch(); setSpeciesSort("vernacular"); };
   const returnToPark = () => { setSelectedId(null); setSelectedLandmark(null); setRecenter((value) => value + 1); };
   const changePark = (nextPark: ParkView) => {
     if (nextPark === activePark) return;
     setActivePark(nextPark);
+    setQuery("");
+    setSelectedSpecies("");
+    setSpeciesSort("vernacular");
+    setSearchSuggestionsOpen(false);
     setSelectedId(null);
     setSelectedLandmark(null);
     setMobilePanelOpen(false);
