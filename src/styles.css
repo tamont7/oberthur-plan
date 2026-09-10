@@ -125,11 +125,11 @@ h1 { margin-bottom: 0; color: #17372c; font-family: "Fraunces", Georgia, serif; 
 .info-list a { color: #22563f; text-underline-offset: 2px; }
 .icon-button svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-width: 1.9; }
 .tree-detail h2 { margin: 0; color: #1d4534; font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif; font-size: 16px; font-weight: 650; letter-spacing: -.015em; line-height: 1.25; }
-.scientific-name { margin: 0 0 11px; color: #6f897b; font-family: Georgia, serif; font-size: 12px; font-style: italic; }
-.scientific-name a { color: inherit; text-decoration-color: #b4c7bb; text-underline-offset: 3px; }
-.scientific-name a:hover { color: #22563f; text-decoration-color: currentColor; }
 .tree-summary-line { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 4px 0 8px; }
 .tree-summary { display: flex; align-items: baseline; gap: 7px; margin: 0; color: #6f897b; font-size: 12px; }
+.tree-summary-scientific { margin: 1px 34px 2px 0; color: #52705f; font-family: Georgia, "Times New Roman", serif; font-size: 13px; font-style: italic; line-height: 1.25; }
+.tree-summary-scientific a { color: inherit; text-decoration-color: #b4c7bb; text-underline-offset: 3px; }
+.tree-summary-scientific a:hover { color: #22563f; text-decoration-color: currentColor; }
 .tree-summary span { color: #788e82; font-family: "DM Mono", monospace; font-size: 9px; letter-spacing: .055em; text-transform: uppercase; }
 .tree-summary strong { color: #315746; font-size: 12px; font-weight: 650; }
 .detail-footer { display: flex; align-items: center; gap: 12px; margin-top: 8px; }

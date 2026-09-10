@@ -106,6 +106,146 @@ const TREE_HOVER_COLOR =
 
 const ORGANIC_CROWN_MAX_LOBE_COUNT = 4;
 
+/*
+ * Texture de feuillage sans image : deux fréquences de bruit très douces
+ * cassent l'aplat de couleur sans chercher à représenter chaque feuille.
+ * Les coordonnées mondiales encodées et la couleur propre à chaque arbre
+ * servent de graine ; le motif reste donc stable quand la caméra se déplace
+ * et varie d'un houppier à l'autre.
+ */
+const CROWN_TEXTURE_VERTEX_SHADER = `
+in vec3 position3DHigh;
+in vec3 position3DLow;
+in vec3 normal;
+in vec4 color;
+in float batchId;
+
+out vec3 v_positionEC;
+out vec3 v_normalEC;
+out vec4 v_color;
+out vec3 v_crownTexturePosition;
+
+void main()
+{
+    vec4 p = czm_computePosition();
+
+    v_positionEC = (czm_modelViewRelativeToEye * p).xyz;
+    v_normalEC = czm_normal * normal;
+    v_color = color;
+    // La partie basse de la coordonnée ECEF ne dépend pas de la caméra.
+    // p est relatif à l'œil et ferait glisser le bruit à chaque mouvement.
+    v_crownTexturePosition = position3DLow;
+
+    gl_Position = czm_modelViewProjectionRelativeToEye * p;
+}
+`;
+
+const CROWN_TEXTURE_FRAGMENT_PREAMBLE = `
+in vec3 v_positionEC;
+in vec3 v_normalEC;
+in vec4 v_color;
+in vec3 v_crownTexturePosition;
+
+float crownHash(vec3 point)
+{
+    return fract(sin(dot(point, vec3(127.1, 311.7, 74.7))) * 43758.5453123);
+}
+
+float crownNoise(vec3 point)
+{
+    vec3 cell = floor(point);
+    vec3 local = fract(point);
+    local = local * local * (3.0 - 2.0 * local);
+
+    float near = mix(
+        mix(crownHash(cell), crownHash(cell + vec3(1.0, 0.0, 0.0)), local.x),
+        mix(crownHash(cell + vec3(0.0, 1.0, 0.0)), crownHash(cell + vec3(1.0, 1.0, 0.0)), local.x),
+        local.y
+    );
+    float far = mix(
+        mix(crownHash(cell + vec3(0.0, 0.0, 1.0)), crownHash(cell + vec3(1.0, 0.0, 1.0)), local.x),
+        mix(crownHash(cell + vec3(0.0, 1.0, 1.0)), crownHash(cell + vec3(1.0, 1.0, 1.0)), local.x),
+        local.y
+    );
+
+    return mix(near, far, local.z);
+}
+`;
+
+const CROWN_TEXTURE_FRAGMENT_EPILOGUE = `
+    czm_materialInput materialInput;
+    materialInput.normalEC = normalEC;
+    materialInput.positionToEyeEC = positionToEyeEC;
+    czm_material material = czm_getDefaultMaterial(materialInput);
+    material.diffuse = clamp(color.rgb + vec3(textureShade), 0.0, 1.0);
+    material.alpha = color.a;
+
+    out_FragColor = czm_phong(normalize(positionToEyeEC), material, czm_lightDirectionEC);
+}
+`;
+
+/* Feuillus : des plages souples, ponctuées d'un grain court et irrégulier. */
+const CROWN_TEXTURE_FRAGMENT_SHADER = `${CROWN_TEXTURE_FRAGMENT_PREAMBLE}
+
+void main()
+{
+    vec3 positionToEyeEC = -v_positionEC;
+    vec3 normalEC = normalize(v_normalEC);
+    normalEC = faceforward(normalEC, vec3(0.0, 0.0, 1.0), -normalEC);
+
+    vec4 color = czm_gammaCorrect(v_color);
+    vec3 seededPosition = v_crownTexturePosition + color.rgb * 19.0;
+    float cloudMass = crownNoise(seededPosition * 0.92) - 0.5;
+    float leafGrain = crownNoise(seededPosition * 6.4 + 8.0) - 0.5;
+    float textureShade = cloudMass * 0.15 + leafGrain * 0.045;
+
+${CROWN_TEXTURE_FRAGMENT_EPILOGUE}`;
+
+/*
+ * Conifères : les étages restent lisibles grâce à un grain plus dense et à
+ * de fines stries obliques. Elles suggèrent les aiguilles sans devenir un
+ * motif graphique à distance.
+ */
+const CONIFER_TEXTURE_FRAGMENT_SHADER = `${CROWN_TEXTURE_FRAGMENT_PREAMBLE}
+
+float needleTuft(vec2 coordinate)
+{
+    vec2 tile = fract(coordinate);
+    tile.x = fract(tile.x + floor(coordinate.y) * 0.5);
+    tile -= 0.5;
+
+    float tipFade = 1.0 - smoothstep(0.14, 0.48, abs(tile.y));
+    float centre = abs(tile.x);
+    float leftNeedle = abs(tile.x + tile.y * 0.38 + 0.09);
+    float rightNeedle = abs(tile.x - tile.y * 0.38 - 0.09);
+    float lineWidth = 0.026;
+    float feather = max(fwidth(centre), 0.008) * 1.6;
+    float tuft = 1.0 - smoothstep(lineWidth, lineWidth + feather, centre);
+    tuft = max(tuft, 1.0 - smoothstep(lineWidth, lineWidth + feather, leftNeedle));
+    tuft = max(tuft, 1.0 - smoothstep(lineWidth, lineWidth + feather, rightNeedle));
+
+    return tuft * tipFade;
+}
+
+void main()
+{
+    vec3 positionToEyeEC = -v_positionEC;
+    vec3 normalEC = normalize(v_normalEC);
+    normalEC = faceforward(normalEC, vec3(0.0, 0.0, 1.0), -normalEC);
+
+    vec4 color = czm_gammaCorrect(v_color);
+    vec3 seededPosition = v_crownTexturePosition + color.rgb * 23.0;
+    float needleGrain = crownNoise(seededPosition * 9.5) - 0.5;
+    float branchMass = crownNoise(seededPosition * 2.2 + 13.0) - 0.5;
+    vec2 tuftCoordinate = vec2(
+        dot(seededPosition, vec3(3.8, -2.3, 1.7)),
+        dot(seededPosition, vec3(1.4, 4.6, -3.1))
+    );
+    float tuft = needleTuft(tuftCoordinate);
+    float textureShade = branchMass * 0.09 + needleGrain * 0.045 + (tuft - 0.22) * 0.075;
+
+${CROWN_TEXTURE_FRAGMENT_EPILOGUE}`;
+
 function makeTreeTooltip(tree: Tree, count: number, x: number, y: number): MapTooltip {
   return {
     name: tree.name,
@@ -557,30 +697,43 @@ function getTreeProportions(
 
 /*
  * Le tronc doit entrer dans le houppier : un simple contact ponctuel
- * au bas d'un ellipsoïde le fait paraître suspendu. La couronne conserve
- * donc sa base botanique ; c'est le tronc qui y entre légèrement.
+ * au bas d'un ellipsoïde le fait paraître suspendu. Pour les feuillus,
+ * la base du volume descend aussi un peu autour de la ramification ; le
+ * sommet reste à la hauteur mesurée afin de ne pas déformer l'arbre.
  */
 function getCrownPlacement(
   trunkHeight: number,
   crownHeight: number,
   shape: TreeShape,
 ): CrownPlacement {
+  const hasLowerCrown =
+    hasOrganicCrownLobes(shape);
+  const lowerCrownDepth =
+    hasLowerCrown
+      ? Math.min(
+        1.1,
+        Math.max(
+          0.3,
+          crownHeight * 0.13,
+        ),
+      )
+      : 0;
   const overlap = Math.min(
     1.2,
     Math.max(
       0.25,
-      crownHeight * 0.1,
+      crownHeight * 0.1 + lowerCrownDepth,
     ),
   );
 
   return {
     centerZ:
       trunkHeight +
-      crownHeight / 2,
+      (crownHeight - lowerCrownDepth) / 2,
     scaleZ:
       shape === "conical"
         ? crownHeight
-        : crownHeight / 2,
+        : (crownHeight + lowerCrownDepth) / 2,
     trunkOverlap: overlap,
   };
 }
@@ -856,10 +1009,10 @@ function getOrganicCrownLobes(
         rotation +
         index / lobeCount * Math.PI * 2 +
         (treeRandom(tree, index + 22) - 0.5) *
-        0.42;
+        0.9;
       const distance =
-        0.2 +
-        treeRandom(tree, index + 26) * 0.18;
+        0.18 +
+        treeRandom(tree, index + 26) * 0.16;
 
       return {
         x:
@@ -871,18 +1024,18 @@ function getOrganicCrownLobes(
           crownRadiusY *
           distance,
         z:
-          (treeRandom(tree, index + 34) - 0.47) *
+          (treeRandom(tree, index + 34) - 0.55) *
           crownHeight *
-          0.22,
+          0.34,
         scaleX:
           crownRadiusX *
-          (0.4 + treeRandom(tree, index + 38) * 0.16),
+          (0.48 + treeRandom(tree, index + 38) * 0.14),
         scaleY:
           crownRadiusY *
-          (0.4 + treeRandom(tree, index + 42) * 0.16),
+          (0.48 + treeRandom(tree, index + 42) * 0.14),
         scaleZ:
           crownScaleZ *
-          (0.43 + treeRandom(tree, index + 46) * 0.17),
+          (0.48 + treeRandom(tree, index + 46) * 0.14),
       };
     },
   );
@@ -934,13 +1087,13 @@ function getMainBranches(
         );
       const pitch =
         CesiumMath.toRadians(
-          42 +
+          28 +
           treeRandom(tree, index + 114) * 12,
         );
       return {
         startZ:
           trunkHeight *
-          (0.84 + treeRandom(tree, index + 120) * 0.1),
+          (0.72 + treeRandom(tree, index + 120) * 0.12),
         length,
         heading,
         pitch,
@@ -986,7 +1139,7 @@ function getStylizedCrownProfile(
         { z: 0.42, radius: 0.1 },
       ],
       lobeCount: 6,
-      lobeDepth: 0.055,
+      lobeDepth: 0.025,
     };
   }
 
@@ -1002,7 +1155,7 @@ function getStylizedCrownProfile(
         { z: 0.9, radius: 0.2 },
       ],
       lobeCount: 7,
-      lobeDepth: 0.075,
+      lobeDepth: 0.055,
     };
   }
 
@@ -1017,7 +1170,7 @@ function getStylizedCrownProfile(
         { z: 0.88, radius: 0.22 },
       ],
       lobeCount: 5,
-      lobeDepth: 0.09,
+      lobeDepth: 0.03,
     };
   }
 
@@ -1045,7 +1198,7 @@ function getStylizedCrownProfile(
       { z: 0.83, radius: 0.37 },
     ],
     lobeCount: 6,
-    lobeDepth: 0.075,
+    lobeDepth: 0.025,
   };
 }
 
@@ -1057,7 +1210,9 @@ function createStylizedCrownGeometry(
     lobeCount,
     lobeDepth,
   } = getStylizedCrownProfile(shape);
-  const slices = 24;
+  // Géométrie partagée : quelques faces de plus lissent les feuillus sans
+  // multiplier les primitives ni les appels de rendu.
+  const slices = 32;
   const positions: number[] = [0, 0, shape === "conical" ? -0.5 : -1];
   const normals: number[] = [0, 0, -1];
   const indices: number[] = [];
@@ -2306,9 +2461,9 @@ export default function MapView(
             1,
           ),
 
-        stackPartitions: 12,
+        stackPartitions: 14,
 
-        slicePartitions: 18,
+        slicePartitions: 20,
 
         vertexFormat:
           PerInstanceColorAppearance.VERTEX_FORMAT,
@@ -2687,6 +2842,14 @@ export default function MapView(
             new PerInstanceColorAppearance(
               {
                 flat: false,
+
+                vertexShaderSource:
+                  CROWN_TEXTURE_VERTEX_SHADER,
+
+                fragmentShaderSource:
+                  shape === "conical"
+                    ? CONIFER_TEXTURE_FRAGMENT_SHADER
+                    : CROWN_TEXTURE_FRAGMENT_SHADER,
 
                 /*
                  * Pas de transparence :

@@ -264,6 +264,33 @@ function TreeDetail({
         </button>
       </div>
 
+      {scientificName && (
+        <p className="tree-summary-scientific">
+          <a
+            href={`${WIKIPEDIA_SEARCH_URL}${encodeURIComponent(
+              scientificName,
+            )}`}
+            target="_blank"
+            rel="noreferrer"
+            aria-label={`Ouvrir le premier résultat Wikipédia pour ${scientificName}`}
+            onClick={(event) => {
+              const tab = window.open(
+                `${WIKIPEDIA_SEARCH_URL}${encodeURIComponent(scientificName)}`,
+                "_blank",
+              );
+
+              if (!tab) return;
+
+              event.preventDefault();
+              tab.opener = null;
+              void resolveWikipediaArticle(tab, scientificName);
+            }}
+          >
+            {scientificName} <span aria-hidden="true">↗</span>
+          </a>
+        </p>
+      )}
+
       <div className="tree-summary-line">
         <p className="tree-summary">
           {tree.height != null && (
@@ -293,55 +320,6 @@ function TreeDetail({
 
       {detailsOpen && (
         <div className="tree-detail-extra">
-          <p className="scientific-name">
-            {scientificName ? (
-              <a
-                href={`${WIKIPEDIA_SEARCH_URL}${encodeURIComponent(
-                  scientificName,
-                )}`}
-                target="_blank"
-                rel="noreferrer"
-                aria-label={`Ouvrir le premier résultat Wikipédia pour ${scientificName}`}
-                onClick={(
-                  event,
-                ) => {
-                  const tab =
-                    window.open(
-                      `${WIKIPEDIA_SEARCH_URL}${encodeURIComponent(
-                        scientificName,
-                      )}`,
-                      "_blank",
-                    );
-
-                  if (!tab) {
-                    return;
-                  }
-
-                  event.preventDefault();
-
-                  tab.opener =
-                    null;
-
-                  void resolveWikipediaArticle(
-                    tab,
-                    scientificName,
-                  );
-                }}
-              >
-                {scientificName}
-
-                <span
-                  aria-hidden="true"
-                >
-                  {" "}
-                  ↗
-                </span>
-              </a>
-            ) : (
-              "Taxon non renseigné"
-            )}
-          </p>
-
           {tree.sourceName &&
             tree.sourceName !==
             tree.name && (
@@ -475,16 +453,14 @@ function LandmarkDetail({ landmark, onClose }: { landmark: ParkLandmark; onClose
     return () => window.clearTimeout(timer);
   }, [landmark.id]);
   const { photo } = landmark.properties;
+  const isBuilding = landmark.properties.kind === "building";
   return <article className="tree-detail landmark-detail" aria-labelledby="landmark-title">
     <div className="detail-topline">
-      <span className="detail-kicker">Repère du parc · volume 3D</span>
+      <h2 id="landmark-title" ref={headingRef} tabIndex={-1}>{landmark.properties.label}</h2>
       <button className="icon-button" onClick={onClose} aria-label="Fermer la fiche"><CloseIcon /></button>
     </div>
-    <h2 id="landmark-title" ref={headingRef} tabIndex={-1}>{landmark.properties.label}</h2>
-    <p className="landmark-description">Emprise géographique et volume de repérage sur la carte. La hauteur est illustrative : la source ne publie pas de hauteur de bâtiment.</p>
+    {!isBuilding && <p className="landmark-description"></p>}
     <img className="tree-photo" src={photo.url} alt={landmark.properties.label} loading="lazy" />
-    <p className="photo-credit">Photo : <a href={photo.page_url} target="_blank" rel="noreferrer">{photo.author} · {photo.license}</a></p>
-    <p className="coordinates">Source géométrique : {landmark.properties.source} · {landmark.properties.source_id}</p>
   </article>;
 }
 
@@ -783,16 +759,16 @@ export default function App() {
         <div key={tree.id} className="tree-list-row" onMouseEnter={() => setHoveredTreeId(tree.id)} onMouseLeave={() => setHoveredTreeId(null)}>
           <button data-tree-id={tree.id} className={`tree-list-item ${tree.id === selectedId ? "is-selected" : ""}`}
             aria-pressed={tree.id === selectedId} onFocus={() => setHoveredTreeId(tree.id)} onBlur={() => setHoveredTreeId(null)} onClick={() => chooseTree(tree)}>
-          <span className="tree-dot" style={{ backgroundColor: tree.id === selectedId ? TREE_COLORS.selected : TREE_COLORS.normal }} aria-hidden="true" />
-          <span className="tree-list-copy">
-            <strong>{tree.name}</strong>
-            <span>{tree.scientificName ?? "Taxon non renseigné"}</span>
-            {(tree.height != null || tree.circumference != null || tree.crownDiameter != null) && <span className="tree-list-measurements">
-              {tree.height != null && <>↕ {tree.height} m</>}
-              {tree.circumference != null && <>{tree.height != null && " · "}⟳ {tree.circumference} cm</>}
-              {tree.crownDiameter != null && <>{(tree.height != null || tree.circumference != null) && " · "}⌀ {tree.crownDiameter} m</>}
-            </span>}
-          </span>
+            <span className="tree-dot" style={{ backgroundColor: tree.id === selectedId ? TREE_COLORS.selected : TREE_COLORS.normal }} aria-hidden="true" />
+            <span className="tree-list-copy">
+              <strong>{tree.name}</strong>
+              <span>{tree.scientificName ?? "Taxon non renseigné"}</span>
+              {(tree.height != null || tree.circumference != null || tree.crownDiameter != null) && <span className="tree-list-measurements">
+                {tree.height != null && <>↕ {tree.height} m</>}
+                {tree.circumference != null && <>{tree.height != null && " · "}⟳ {tree.circumference} cm</>}
+                {tree.crownDiameter != null && <>{(tree.height != null || tree.circumference != null) && " · "}⌀ {tree.crownDiameter} m</>}
+              </span>}
+            </span>
           </button>
           <button type="button" className="focus-tree-button" onFocus={() => setHoveredTreeId(tree.id)} onBlur={() => setHoveredTreeId(null)} onClick={() => focusTree(tree)} aria-label={`Centrer la carte sur ${tree.name}`}>⌖</button>
         </div>
@@ -827,8 +803,8 @@ export default function App() {
       {!planOnly && selectedTree && <TreeDetail key={selectedTree.id} tree={selectedTree} rawFeature={data?.features.find((feature) => feature.id === selectedTree.id)} count={speciesStats.get(selectedTree.species)?.count ?? 1} onClose={closeDetail} isMobile={isMobile} />}
       {!planOnly && selectedLandmark && <LandmarkDetail landmark={selectedLandmark} onClose={closeLandmark} />}
       {!planOnly && <button ref={listTriggerRef} className={`mobile-sheet-trigger ${selectedTree ? "is-hidden" : ""}`} onClick={() => openMobilePanel("filter")}
-          aria-haspopup="dialog" aria-expanded={mobilePanelOpen} aria-controls="mobile-explorer">
-          {data ? hasFilters ? `${visibleTrees.length} résultats · Modifier` : `Explorer les ${visibleTrees.length} arbres` : "Explorer les arbres"} <span aria-hidden="true">↑</span>
+        aria-haspopup="dialog" aria-expanded={mobilePanelOpen} aria-controls="mobile-explorer">
+        {data ? hasFilters ? `${visibleTrees.length} résultats · Modifier` : `Explorer les ${visibleTrees.length} arbres` : "Explorer les arbres"} <span aria-hidden="true">↑</span>
       </button>}
     </section>
     {planOnly ? <aside className="thabor-panel" aria-label="Plan du Parc du Thabor">
@@ -841,7 +817,7 @@ export default function App() {
         <button type="button" className="mobile-panel-direction is-map" aria-label="Revenir à la carte" onClick={() => setMobilePanelOpen(false)}><i aria-hidden="true" /><span>Carte</span><i aria-hidden="true" /></button>
         <button type="button" className="mobile-panel-direction is-list" aria-label="Agrandir vers la liste des arbres" disabled={mobilePanelMode === "list"} onClick={() => setMobilePanelMode("list")}><i aria-hidden="true" /><span>Liste</span><i aria-hidden="true" /></button>
       </div>
-        {mobilePanelMode === "list" && <div className="mobile-panel-title"><div><strong>Liste des arbres</strong></div><button type="button" className="text-button" onClick={() => setMobilePanelMode("filter")}>Modifier le filtre</button></div>}{explorer}</dialog>
+      {mobilePanelMode === "list" && <div className="mobile-panel-title"><div><strong>Liste des arbres</strong></div><button type="button" className="text-button" onClick={() => setMobilePanelMode("filter")}>Modifier le filtre</button></div>}{explorer}</dialog>
       : <aside className="explorer-panel" aria-label="Liste des arbres">{explorer}</aside>}
     {!planOnly && <dialog className="info-dialog" ref={infoDialogRef} aria-labelledby="info-title" onClose={() => setInfoOpen(false)}>
       <div className="info-dialog-topline">
