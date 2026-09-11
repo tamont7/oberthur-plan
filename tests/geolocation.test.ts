@@ -10,18 +10,20 @@ function fix(accuracy: number, timestamp = now) {
   };
 }
 
-test("attend une mesure précise après une première localisation approximative", () => {
-  assert.equal(readLocation(fix(500), now), null);
+test("accepte une localisation approximative et conserve son incertitude", () => {
+  assert.equal(readLocation(fix(500), now)?.accuracy, 500);
   assert.deepEqual(readLocation(fix(8), now), {
     longitude: -1.66, latitude: 48.11, accuracy: 8, timestamp: now,
   });
-  assert.equal(readLocation(fix(100), now), null);
+  assert.equal(readLocation(fix(100), now)?.accuracy, 100);
+  assert.equal(readLocation(fix(0), now)?.accuracy, 0);
 });
 
 test("rejette les positions anciennes ou invalides", () => {
-  assert.equal(readLocation(fix(8, now - 15_000), now), null);
+  assert(readLocation(fix(8, now - 15_000), now));
+  assert.equal(readLocation(fix(8, now - 60_000), now), null);
   assert.equal(readLocation(fix(8, now + 1), now), null);
-  for (const accuracy of [0, -1, NaN, Infinity]) {
+  for (const accuracy of [-1, NaN, Infinity]) {
     assert.equal(readLocation(fix(accuracy), now), null);
   }
   const invalid = fix(8);

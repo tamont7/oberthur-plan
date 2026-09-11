@@ -5,9 +5,9 @@ export type UserLocation = {
   timestamp: number;
 };
 
-// A park map needs a pedestrian-scale fix before showing a position.
-export const MAX_LOCATION_ACCURACY_METRES = 35;
-export const MAX_LOCATION_AGE_MS = 15_000;
+// Accuracy describes uncertainty; it must not prevent acquisition.
+export const PRECISE_LOCATION_METRES = 35;
+export const MAX_LOCATION_AGE_MS = 60_000;
 
 export function readLocation(
   { coords, timestamp }: { coords: Pick<GeolocationCoordinates, "longitude" | "latitude" | "accuracy">; timestamp: number },
@@ -17,7 +17,7 @@ export function readLocation(
   if (
     ![longitude, latitude, accuracy, timestamp].every(Number.isFinite) ||
     Math.abs(longitude) > 180 || Math.abs(latitude) > 90 ||
-    accuracy <= 0 || accuracy > MAX_LOCATION_ACCURACY_METRES ||
+    accuracy < 0 ||
     timestamp > now || now - timestamp >= MAX_LOCATION_AGE_MS
   ) return null;
 
@@ -43,7 +43,7 @@ export function createLocationFilter() {
     if (next.timestamp <= latestTimestamp) return null;
     latestTimestamp = next.timestamp;
 
-    if (!previous || next.timestamp - previous.timestamp >= MAX_LOCATION_AGE_MS) {
+    if (!previous || next.timestamp - previous.timestamp >= 15_000) {
       previous = displayed = next;
       pendingJump = null;
       return next;
