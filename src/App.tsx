@@ -2,7 +2,7 @@ import { Component, lazy, Suspense, useEffect, useMemo, useRef, useState, type P
 import { filterTrees, normalizeSearch, parseTreeData, TREE_COLORS, type Tree, type TreeData } from "./data";
 import { PARK_PLAN_SOURCE_URL, SOURCE_URL } from "./park";
 import { isPointInPark, parseParkPlan, type ParkLandmark, type ParkPlan } from "./plan";
-import { TreeFoliage } from "./TreeFoliage";
+import { TreeFoliage, TreeFoliageThumbnail } from "./TreeFoliage";
 
 const DATA_URL = `${import.meta.env.BASE_URL}data/arbres-rennes.geojson`;
 const THABOR_DATA_URL = `${import.meta.env.BASE_URL}data/arbres-thabor.geojson`;
@@ -873,6 +873,7 @@ export default function App() {
               </span>}
             </span>
           </button>
+          <TreeFoliageThumbnail tree={tree} />
           <button type="button" className="focus-tree-button" onFocus={() => setHoveredTreeId(tree.id)} onBlur={() => setHoveredTreeId(null)} onClick={() => focusTree(tree)} aria-label={`Centrer la carte sur ${tree.name}`}>⌖</button>
         </div>
       )) : <div className="empty-state"><LeafIcon /><p>Aucun arbre ne correspond à ces critères.</p><button className="text-button" onClick={clearFilters}>Effacer les filtres</button></div>}

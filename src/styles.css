@@ -98,6 +98,8 @@ h1 { margin-bottom: 0; color: #17372c; font-family: "Fraunces", Georgia, serif; 
 .text-button:hover { color: #174b35; }
 .tree-list { overflow: auto; flex: 1; padding: 0 14px 12px; }
 .tree-list-row { display: flex; align-items: stretch; gap: 3px; }
+.tree-list-foliage { display: flex; align-self: center; flex: 0 0 44px; height: 48px; margin-inline: 6px; color: #416747; pointer-events: none; }
+.tree-list-foliage svg { display: block; width: 100%; height: 100%; }
 .tree-list-item { display: flex; align-items: center; flex: 1; min-width: 0; gap: 11px; border: 0; border-radius: 8px; padding: 11px 12px; color: #1d4534; text-align: left; background: transparent; transition: background .15s, box-shadow .15s, transform .15s; }
 .tree-list-item:hover, .tree-list-item:focus-visible { background: #f5f0ff; box-shadow: inset 3px 0 #a855f7, 0 2px 8px rgba(20, 50, 38, .07); transform: translateX(2px); }
 .tree-list-item:hover .tree-dot, .tree-list-item:focus-visible .tree-dot { box-shadow: 0 0 0 3px rgba(168, 85, 247, .2); }

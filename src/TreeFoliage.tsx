@@ -136,6 +136,12 @@ function LeafDrawing({ foliage }: { foliage: Foliage }) {
   </svg>;
 }
 
+export function TreeFoliageThumbnail({ tree }: { tree: Tree }) {
+  const foliage = foliageForTree(tree);
+  if (!foliage) return null;
+  return <span className="tree-list-foliage" aria-hidden="true"><LeafDrawing foliage={foliage} /></span>;
+}
+
 export function TreeFoliage({ tree }: { tree: Tree }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const titleId = useId();
