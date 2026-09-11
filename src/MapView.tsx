@@ -42,6 +42,7 @@ import {
 } from "./data";
 
 import { PARK_PLAN_BOUNDS } from "./park";
+import { createLocationFilter, MAX_LOCATION_AGE_MS, readLocation, type UserLocation } from "./geolocation";
 import { buildPathNetwork, simplifyPath } from "./pathGeometry";
 import entranceIcon from "./assets/park-entrance.svg";
 
@@ -102,11 +103,6 @@ type MapTooltip = {
   crownDiameter?: number | null;
   x: number;
   y: number;
-};
-
-type UserLocation = {
-  longitude: number;
-  latitude: number;
 };
 
 const MAX_LOCATION_DISTANCE_FROM_PARK_METRES = 250;
@@ -1616,29 +1612,49 @@ export default function MapView(
   const locationWatchRef = useRef<number | null>(null);
   const shouldCenterOnLocationRef = useRef(false);
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
-  const [locationStatus, setLocationStatus] = useState<"idle" | "locating" | "too-far" | "error">("idle");
+  const [locationStatus, setLocationStatus] = useState<"idle" | "locating" | "imprecise" | "too-far" | "error">("idle");
+  const [locationNoticeVisible, setLocationNoticeVisible] = useState(true);
+  const [locationRequest, setLocationRequest] = useState(0);
 
   useEffect(() => () => {
     if (locationWatchRef.current !== null) navigator.geolocation.clearWatch(locationWatchRef.current);
   }, []);
 
   useEffect(() => {
-    if (locationStatus !== "too-far") return;
-
-    const timeoutId = window.setTimeout(() => setLocationStatus("idle"), 4000);
+    if (!userLocation) return;
+    const timeoutId = window.setTimeout(() => {
+      setUserLocation(null);
+      setLocationStatus("imprecise");
+    }, Math.max(0, userLocation.timestamp + MAX_LOCATION_AGE_MS - Date.now()));
     return () => window.clearTimeout(timeoutId);
-  }, [locationStatus]);
+  }, [userLocation]);
+
+  useEffect(() => {
+    setLocationNoticeVisible(true);
+    if (!["too-far", "error", "imprecise"].includes(locationStatus)) return;
+
+    // Keep the status so repeated GPS errors do not reopen the same notice.
+    const timeoutId = window.setTimeout(() => setLocationNoticeVisible(false), 4000);
+    return () => window.clearTimeout(timeoutId);
+  }, [locationStatus, locationRequest]);
 
   useEffect(() => {
     const viewer = viewerRef.current;
     if (!viewer) return;
 
     viewer.entities.removeById("user-location");
+    viewer.scene.requestRender();
     if (!userLocation) return;
 
     viewer.entities.add({
       id: "user-location",
       position: Cartesian3.fromDegrees(userLocation.longitude, userLocation.latitude, PLAN_HEIGHT + 1),
+      ellipse: {
+        semiMajorAxis: userLocation.accuracy,
+        semiMinorAxis: userLocation.accuracy,
+        height: PLAN_HEIGHT + 0.05,
+        material: Color.fromCssColorString("#2563eb").withAlpha(0.15),
+      },
       point: {
         pixelSize: 13,
         color: Color.fromCssColorString("#2563eb"),
@@ -3887,20 +3903,50 @@ export default function MapView(
     viewer.scene.requestRender();
   };
 
+  const centerOnLocation = (location: UserLocation) => {
+    const viewer = viewerRef.current;
+    if (!viewer) return;
+    shouldCenterOnLocationRef.current = false;
+    viewer.camera.cancelFlight();
+    viewer.camera.flyToBoundingSphere(
+      new BoundingSphere(Cartesian3.fromDegrees(location.longitude, location.latitude), 70),
+      {
+        duration: 0.7,
+        offset: new HeadingPitchRange(0, CesiumMath.toRadians(viewMode === "2d" ? -87 : -70), 150),
+      },
+    );
+  };
+
   const locateUser = () => {
+    setLocationRequest((request) => request + 1);
     if (!navigator.geolocation) {
       setLocationStatus("error");
       return;
     }
 
     shouldCenterOnLocationRef.current = true;
+    if (userLocation && Date.now() - userLocation.timestamp < MAX_LOCATION_AGE_MS) {
+      centerOnLocation(userLocation);
+      setLocationStatus("idle");
+      return;
+    }
     setLocationStatus("locating");
 
     if (locationWatchRef.current !== null) return;
 
+    const filterLocation = createLocationFilter();
     locationWatchRef.current = navigator.geolocation.watchPosition(
-      ({ coords }) => {
-        const nextLocation = { longitude: coords.longitude, latitude: coords.latitude };
+      (position) => {
+        const measurement = readLocation(position);
+        if (!measurement) {
+          setUserLocation(null);
+          setLocationStatus("imprecise");
+          return;
+        }
+
+        const nextLocation = filterLocation(measurement);
+        // Keep the last dot until confirmation, without extending its expiry time.
+        if (!nextLocation) return;
 
         if (!isNearCurrentPark(nextLocation, planRef.current)) {
           shouldCenterOnLocationRef.current = false;
@@ -3914,24 +3960,22 @@ export default function MapView(
         setUserLocation(nextLocation);
         setLocationStatus("idle");
 
-        const viewer = viewerRef.current;
-        if (!viewer || !shouldCenterOnLocationRef.current) return;
-        shouldCenterOnLocationRef.current = false;
-        viewer.camera.cancelFlight();
-        viewer.camera.flyToBoundingSphere(
-          new BoundingSphere(Cartesian3.fromDegrees(nextLocation.longitude, nextLocation.latitude), 70),
-          {
-            duration: 0.7,
-            offset: new HeadingPitchRange(0, CesiumMath.toRadians(viewMode === "2d" ? -87 : -70), 150),
-          },
-        );
+        // Consume only the explicit button request; subsequent fixes move the dot alone.
+        if (shouldCenterOnLocationRef.current) centerOnLocation(nextLocation);
       },
-      () => {
+      (error) => {
+        setUserLocation(null);
+        // Timeouts and temporary signal loss must not stop GPS refinement.
+        if (error.code !== 1) {
+          setLocationStatus("imprecise");
+          return;
+        }
+        shouldCenterOnLocationRef.current = false;
         setLocationStatus("error");
         if (locationWatchRef.current !== null) navigator.geolocation.clearWatch(locationWatchRef.current);
         locationWatchRef.current = null;
       },
-      { enableHighAccuracy: true, maximumAge: 10_000, timeout: 12_000 },
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 20_000 },
     );
   };
 
@@ -3992,8 +4036,10 @@ export default function MapView(
       </div>
 
       {locationStatus === "locating" && <p className="map-location-notice" role="status">Localisation en cours…</p>}
-      {locationStatus === "too-far" && <p className="map-location-notice is-error" role="alert">Vous êtes trop loin du parc affiché.</p>}
-      {locationStatus === "error" && <p className="map-location-notice is-error" role="alert">La position n’a pas pu être obtenue. Vérifiez l’autorisation de localisation.</p>}
+      {locationNoticeVisible && locationStatus === "imprecise" && <p className="map-location-notice" role="status">Signal de localisation insuffisant. Recherche d’une position plus précise…</p>}
+      {locationStatus === "idle" && userLocation && <p className="map-location-notice" role="status">Précision estimée : {Math.ceil(userLocation.accuracy)} m. Le cercle indique la zone d’incertitude.</p>}
+      {locationNoticeVisible && locationStatus === "too-far" && <p className="map-location-notice is-error" role="alert">Vous êtes trop loin du parc affiché.</p>}
+      {locationNoticeVisible && locationStatus === "error" && <p className="map-location-notice is-error" role="alert">La position n’a pas pu être obtenue. Vérifiez l’autorisation de localisation.</p>}
 
       {tooltip && (
         <div
