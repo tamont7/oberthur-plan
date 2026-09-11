@@ -126,3 +126,29 @@ test("le Thabor expose son inventaire d’arbres limité à son emprise", async 
   await expect(page.locator(".cesium-map")).toHaveAttribute("data-plan-features", "312");
   await expect(page.locator(".tree-list-item")).toHaveCount(1081);
 });
+
+test("la carte reste interactive après des survols répétés", async ({ page, isMobile }) => {
+  test.skip(isMobile, "Le survol concerne la souris");
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error") errors.push(message.text());
+  });
+  await page.goto("/");
+  await expect(page.locator(".map-scene-loading")).toHaveAttribute("aria-hidden", "true");
+  const rows = page.locator(".tree-list-row");
+  for (let index = 0; index < 16; index += 1) {
+    await rows.nth(index).hover();
+    await page.waitForTimeout(220);
+    await expect(page.locator(".cesium-map")).toHaveAttribute("data-map-state", "ready");
+  }
+  await page.getByRole("button", { name: "Zoomer", exact: true }).click();
+  const canvas = page.locator(".cesium-map canvas");
+  const before = await canvas.screenshot();
+  await page.getByRole("button", { name: "Dézoomer", exact: true }).click();
+  await page.waitForTimeout(500);
+  expect((await canvas.screenshot()).equals(before)).toBe(false);
+  await rows.first().click();
+  await expect(page.locator(".tree-detail")).toBeVisible();
+  expect(errors).toEqual([]);
+});

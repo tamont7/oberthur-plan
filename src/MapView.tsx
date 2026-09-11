@@ -2023,7 +2023,7 @@ export default function MapView(
 
       cleanups.push(
         viewer.scene.renderError.addEventListener(
-          (error) => {
+          (_scene, error) => {
             console.error(
               "Erreur de rendu Cesium",
               error,
@@ -3658,10 +3658,15 @@ export default function MapView(
 
     const proportions = getTreeProportions(hoveredTree);
     const crownRadius = Math.max(proportions.crownRadiusX, proportions.crownRadiusY);
-    const pulseRadius = new CallbackProperty(() => {
+    const getPulseRadius = () => {
       const phase = (Math.sin(Date.now() / 120) + 1) / 2;
       return crownRadius * (1.08 + phase * 0.28);
-    }, false);
+    };
+    // Cesium lit les deux axes séparément : une lecture de Date.now() dans
+    // chaque callback peut rendre le petit axe supérieur au grand et arrêter
+    // le rendu. Le rayon reste identique pendant toute la mise à jour de scène.
+    let currentPulseRadius = getPulseRadius();
+    const pulseRadius = new CallbackProperty(() => currentPulseRadius, false);
 
     viewer.entities.add({
       id: "tree-hover-pulse",
@@ -3676,7 +3681,10 @@ export default function MapView(
       },
     });
 
-    const renderTimer = window.setInterval(() => viewer.scene.requestRender(), 50);
+    const renderTimer = window.setInterval(() => {
+      currentPulseRadius = getPulseRadius();
+      viewer.scene.requestRender();
+    }, 50);
     return () => {
       window.clearInterval(renderTimer);
       if (!viewer.isDestroyed()) {
