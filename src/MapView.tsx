@@ -1900,6 +1900,12 @@ export default function MapView(
       | { x: number; y: number; time: number }
       | null = null;
 
+    let touchZoomGesture:
+      | { pointerId: number; lastY: number; target: Cartesian3 }
+      | null = null;
+
+    let touchZoomJustEnded = false;
+
     try {
       viewer =
         new Viewer(
@@ -2043,69 +2049,144 @@ export default function MapView(
       );
 
       /*
-       * Cesium associe le double-clic à la souris, pas au double-tap.
-       * Le pincement reste géré par le contrôleur caméra ; ce geste ajoute
-       * simplement un zoom rapide et prévisible au doigt.
+       * Geste Android Maps : un premier tap, puis un second tap maintenu,
+       * avec déplacement vertical pour zoomer. Le contrôleur Cesium est
+       * suspendu pendant ce geste afin qu'il ne transforme pas le mouvement
+       * en rotation ou en déplacement de la carte.
        */
-      const zoomOnDoubleTap =
-        (event: PointerEvent) => {
-          if (
-            !isMobileRef.current ||
-            event.pointerType !== "touch" ||
-            !event.isPrimary
-          ) {
-            return;
-          }
+      const getCanvasPosition = (event: PointerEvent) => {
+        const rect = viewer!.scene.canvas.getBoundingClientRect();
+        return new Cartesian2(
+          event.clientX - rect.left,
+          event.clientY - rect.top,
+        );
+      };
 
-          const rect = viewer!.scene.canvas.getBoundingClientRect();
-          const position = new Cartesian2(
-            event.clientX - rect.left,
-            event.clientY - rect.top,
-          );
-          const now = performance.now();
-          const previousTap = lastTouchTap;
+      const beginOrRememberTouch = (event: PointerEvent) => {
+        if (
+          !isMobileRef.current ||
+          event.pointerType !== "touch" ||
+          !event.isPrimary
+        ) {
+          return;
+        }
 
-          lastTouchTap = {
-            x: position.x,
-            y: position.y,
-            time: now,
-          };
+        touchZoomJustEnded = false;
+        const position = getCanvasPosition(event);
+        const now = performance.now();
+        const previousTap = lastTouchTap;
+        const isSecondTap = previousTap &&
+          now - previousTap.time <= 300 &&
+          Math.hypot(
+            position.x - previousTap.x,
+            position.y - previousTap.y,
+          ) <= 32;
 
-          if (
-            !previousTap ||
-            now - previousTap.time > 300 ||
-            Math.hypot(
-              position.x - previousTap.x,
-              position.y - previousTap.y,
-            ) > 32
-          ) {
-            return;
-          }
+        if (!isSecondTap) return;
 
-          lastTouchTap = null;
+        lastTouchTap = null;
+        const target = viewer!.camera.pickEllipsoid(
+          position,
+          viewer!.scene.globe.ellipsoid,
+        );
 
-          const target = viewer!.camera.pickEllipsoid(
-            position,
-            viewer!.scene.globe.ellipsoid,
-          );
+        if (!target) return;
 
-          if (!target) return;
-
-          smoothZoomTo(viewer!, target, 0.55);
+        touchZoomGesture = {
+          pointerId: event.pointerId,
+          lastY: event.clientY,
+          target,
         };
+        viewer!.scene.screenSpaceCameraController.enableInputs = false;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+      };
 
-      viewer.scene.canvas.addEventListener(
-        "pointerup",
-        zoomOnDoubleTap,
-      );
+      const updateTouchZoom = (event: PointerEvent) => {
+        if (
+          !touchZoomGesture ||
+          event.pointerId !== touchZoomGesture.pointerId
+        ) {
+          return;
+        }
 
-      cleanups.push(
-        () =>
-          viewer?.scene.canvas.removeEventListener(
-            "pointerup",
-            zoomOnDoubleTap,
-          ),
-      );
+        const deltaY = event.clientY - touchZoomGesture.lastY;
+        touchZoomGesture.lastY = event.clientY;
+
+        if (deltaY !== 0) {
+          const camera = viewer!.camera;
+          const distance = Cartesian3.distance(
+            camera.positionWC,
+            touchZoomGesture.target,
+          );
+          const amount = Math.max(
+            1,
+            distance * Math.min(0.08, Math.abs(deltaY) * 0.002),
+          );
+
+          if (deltaY < 0) camera.zoomOut(amount);
+          else camera.zoomIn(amount);
+          viewer!.scene.requestRender();
+        }
+
+        event.preventDefault();
+        event.stopImmediatePropagation();
+      };
+
+      const endTouchZoom = (event: PointerEvent) => {
+        if (
+          !touchZoomGesture ||
+          event.pointerId !== touchZoomGesture.pointerId
+        ) {
+          return;
+        }
+
+        touchZoomGesture = null;
+        touchZoomJustEnded = true;
+        viewer!.scene.screenSpaceCameraController.enableInputs = true;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+      };
+
+      const rememberTouchTap = (event: PointerEvent) => {
+        if (
+          touchZoomGesture ||
+          touchZoomJustEnded ||
+          !isMobileRef.current ||
+          event.pointerType !== "touch" ||
+          !event.isPrimary
+        ) {
+          return;
+        }
+
+        touchZoomJustEnded = false;
+
+        const position = getCanvasPosition(event);
+        lastTouchTap = {
+          x: position.x,
+          y: position.y,
+          time: performance.now(),
+        };
+      };
+
+      const canvas = viewer.scene.canvas;
+      canvas.addEventListener("pointerdown", beginOrRememberTouch, true);
+      canvas.addEventListener("pointermove", updateTouchZoom, true);
+      canvas.addEventListener("pointerup", endTouchZoom, true);
+      canvas.addEventListener("pointercancel", endTouchZoom, true);
+      canvas.addEventListener("pointerup", rememberTouchTap);
+
+      cleanups.push(() => {
+        canvas.removeEventListener("pointerdown", beginOrRememberTouch, true);
+        canvas.removeEventListener("pointermove", updateTouchZoom, true);
+        canvas.removeEventListener("pointerup", endTouchZoom, true);
+        canvas.removeEventListener("pointercancel", endTouchZoom, true);
+        canvas.removeEventListener("pointerup", rememberTouchTap);
+        if (touchZoomGesture) {
+          viewer!.scene.screenSpaceCameraController.enableInputs = true;
+          touchZoomGesture = null;
+        }
+      });
 
       interactions =
         new ScreenSpaceEventHandler(

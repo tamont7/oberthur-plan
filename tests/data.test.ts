@@ -138,6 +138,19 @@ test("un nom français corrigé reste traçable au libellé publié", () => {
   assert.equal(hêtrePourpre.feature?.properties.nom_scientifique, "Fagus sylvatica Purpurea");
 });
 
+test("le hêtre pleureur utilise le nom de cultivar correct", () => {
+  const hêtrePleureur = normalizeRecord({
+    ...record,
+    nom_commun: "Hêtre commun",
+    genre: "Fagus",
+    espece: "sylvatica",
+    variete: "Pendula",
+  });
+  assert.equal(hêtrePleureur.feature?.properties.nom, "Hêtre pleureur");
+  assert.equal(hêtrePleureur.feature?.properties.nom_source, "Hêtre commun");
+  assert.equal(hêtrePleureur.feature?.properties.nom_scientifique, "Fagus sylvatica Pendula");
+});
+
 test("les arbres dans l’emprise GPS sont publiés, sauf s’ils sont signalés abattus", () => {
   assert(normalizeRecord({ ...record, localisation: null }).feature);
   assert.equal(normalizeRecord({ ...record, abattu: 1 }).reason, "felled");

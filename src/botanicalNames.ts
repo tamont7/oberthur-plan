@@ -6,6 +6,7 @@ function normalizeTaxon(value: string | null) {
 // Le nom publié par la collectivité est toujours conservé séparément.
 const preferredCommonNames: Record<string, string> = {
   "fagus sylvatica purpurea": "Hêtre pourpre",
+  "fagus sylvatica pendula": "Hêtre pleureur",
 };
 
 export function preferredCommonName(sourceName: string | null, scientificName: string | null) {
