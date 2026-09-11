@@ -290,8 +290,20 @@ function makeTreeTooltip(tree: Tree, count: number, x: number, y: number): MapTo
 }
 
 function isInsideMapCanvas(viewer: Viewer, position: { x: number; y: number }) {
-  const { clientWidth, clientHeight } = viewer.scene.canvas;
-  return position.x >= 0 && position.y >= 0 && position.x < clientWidth && position.y < clientHeight;
+  const scene = viewer.scene;
+  const { clientWidth, clientHeight } = scene.canvas;
+  if (!(position.x >= 0 && position.y >= 0 && position.x < clientWidth && position.y < clientHeight)) {
+    return false;
+  }
+
+  // Cesium lit un carré de 3 × 3 pixels, avec une origine Y en bas.
+  // Vérifier toute la zone en pixels du tampon (zoom et densité compris).
+  const pixelX = position.x * scene.drawingBufferWidth / clientWidth;
+  const pixelY = position.y * scene.drawingBufferHeight / clientHeight;
+  const left = pixelX - 1;
+  const bottom = scene.drawingBufferHeight - pixelY - 1;
+  return left >= 0 && bottom >= 0 &&
+    left + 3 <= scene.drawingBufferWidth && bottom + 3 <= scene.drawingBufferHeight;
 }
 
 function positions(
