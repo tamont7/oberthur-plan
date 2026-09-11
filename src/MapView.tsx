@@ -130,10 +130,10 @@ const TREE_TRUNK_COLOR =
   Color.fromCssColorString("#735039");
 
 const TREE_SELECTED_COLOR =
-  Color.fromCssColorString("#d99020");
+  Color.fromCssColorString("#7c3aed");
 
 const TREE_HOVER_COLOR =
-  Color.fromCssColorString("#f2b84b");
+  Color.fromCssColorString("#a855f7");
 
 const ORGANIC_CROWN_MAX_LOBE_COUNT = 4;
 
@@ -1610,6 +1610,7 @@ export default function MapView(
     );
 
   const [cameraHeading, setCameraHeading] = useState(0);
+  const [completedFocusRequest, setCompletedFocusRequest] = useState(0);
   const displayedHeadingRef = useRef(0);
   const focusAnimationRef = useRef<number | null>(null);
   const locationWatchRef = useRef<number | null>(null);
@@ -1729,7 +1730,7 @@ export default function MapView(
       CesiumMath.toRadians(-66),
       parkRange,
     );
-    const closeRange = parkRange * 0.33;
+    const closeRange = parkRange * 0.2;
     const closeOffset = new HeadingPitchRange(parkOffset.heading, parkOffset.pitch, closeRange);
     const canvasCentre = new Cartesian2(viewer.scene.canvas.clientWidth / 2, viewer.scene.canvas.clientHeight / 2);
     const currentCentre = viewer.camera.pickEllipsoid(canvasCentre, viewer.scene.globe.ellipsoid);
@@ -1762,6 +1763,7 @@ export default function MapView(
         destination: closePose.destination,
         orientation: { direction: closePose.direction, up: closePose.up },
         duration: 1.1,
+        complete: () => setCompletedFocusRequest(focusRequest),
       });
       return () => viewer.camera.cancelFlight();
     }
@@ -1795,7 +1797,10 @@ export default function MapView(
       viewer.camera.setView({ destination: pose.destination, orientation: { direction: pose.direction, up: pose.up } });
       viewer.scene.requestRender();
       if (progress < 1) focusAnimationRef.current = window.requestAnimationFrame(animate);
-      else focusAnimationRef.current = null;
+      else {
+        focusAnimationRef.current = null;
+        setCompletedFocusRequest(focusRequest);
+      }
     };
 
     focusAnimationRef.current = window.requestAnimationFrame(animate);
@@ -1809,7 +1814,7 @@ export default function MapView(
   useEffect(() => {
     const viewer = viewerRef.current;
     const treeToFocus = focusTreeId ? trees.find((tree) => tree.id === focusTreeId) ?? null : null;
-    if (!viewer || !treeToFocus || focusRequest === 0) return;
+    if (!viewer || !treeToFocus || focusRequest === 0 || completedFocusRequest !== focusRequest) return;
 
     const proportions = getTreeProportions(treeToFocus);
     const shape = getTreeShape(treeToFocus);
@@ -1826,15 +1831,15 @@ export default function MapView(
         modelMatrix: makeTreeMatrix(
           treeToFocus,
           crownPlacement.centerZ,
-          proportions.crownRadiusX,
-          proportions.crownRadiusY,
-          crownPlacement.scaleZ,
+          proportions.crownRadiusX * 1.45,
+          proportions.crownRadiusY * 1.45,
+          crownPlacement.scaleZ * 1.2,
         ),
-        attributes: { color: ColorGeometryInstanceAttribute.fromColor(TREE_SELECTED_COLOR) },
+        attributes: { color: ColorGeometryInstanceAttribute.fromColor(TREE_SELECTED_COLOR.withAlpha(0.88)) },
       }),
       appearance: new PerInstanceColorAppearance({
         flat: false,
-        translucent: false,
+        translucent: true,
         closed: true,
         renderState: { depthTest: { enabled: false } },
       }),
@@ -1843,30 +1848,20 @@ export default function MapView(
     }));
     viewer.scene.requestRender();
 
-    focusCrown.show = false;
-    let flashes = 0;
-    let removeTimer: number | undefined;
-    const flashTimer = window.setInterval(() => {
-      focusCrown.show = !focusCrown.show;
-      if (focusCrown.show) flashes += 1;
-      viewer.scene.requestRender();
-      if (flashes === 3) {
-        window.clearInterval(flashTimer);
-        removeTimer = window.setTimeout(() => {
-          if (!viewer.isDestroyed()) {
-            viewer.scene.primitives.remove(focusCrown);
-            viewer.scene.requestRender();
-          }
-        }, 180);
+    // La couronne mise en avant reste visible un instant après l'arrivée,
+    // sans clignotement qui interromprait la lecture de la carte.
+    const removeTimer = window.setTimeout(() => {
+      if (!viewer.isDestroyed()) {
+        viewer.scene.primitives.remove(focusCrown);
+        viewer.scene.requestRender();
       }
-    }, 180);
+    }, 1_500);
 
     return () => {
-      window.clearInterval(flashTimer);
-      if (removeTimer !== undefined) window.clearTimeout(removeTimer);
+      window.clearTimeout(removeTimer);
       if (!viewer.isDestroyed()) viewer.scene.primitives.remove(focusCrown);
     };
-  }, [trees, focusTreeId, focusRequest, plan, revision]);
+  }, [trees, focusTreeId, focusRequest, completedFocusRequest, plan, revision]);
 
   /*
    * Viewer Cesium
@@ -3675,9 +3670,9 @@ export default function MapView(
         semiMajorAxis: pulseRadius,
         semiMinorAxis: pulseRadius,
         height: PLAN_HEIGHT + 0.08,
-        material: Color.fromCssColorString("#f2b84b").withAlpha(0.18),
+        material: TREE_HOVER_COLOR.withAlpha(0.18),
         outline: true,
-        outlineColor: Color.fromCssColorString("#f2b84b"),
+        outlineColor: TREE_HOVER_COLOR,
       },
     });
 

@@ -262,7 +262,7 @@ export const TREE_COLORS = {
     "#d99020",
 
   selected:
-    "#d99020",
+    "#7c3aed",
 };
 
 export function treeColor(
