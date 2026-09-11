@@ -4529,44 +4529,6 @@
     },
     {
       "type": "Feature",
-      "id": "osm-thabor-path-207283349",
-      "geometry": {
-        "type": "LineString",
-        "coordinates": [
-          [
-            -1.670112,
-            48.1129595
-          ],
-          [
-            -1.6701166,
-            48.112978
-          ],
-          [
-            -1.6701381,
-            48.1130066
-          ],
-          [
-            -1.6701459,
-            48.1130221
-          ],
-          [
-            -1.6701486,
-            48.1130562
-          ],
-          [
-            -1.6701379,
-            48.1131045
-          ]
-        ]
-      },
-      "properties": {
-        "kind": "path",
-        "source": "OpenStreetMap",
-        "source_id": "way/207283349"
-      }
-    },
-    {
-      "type": "Feature",
       "id": "osm-thabor-path-207283355",
       "geometry": {
         "type": "LineString",
@@ -17294,6 +17256,770 @@
           "license": "CC BY-SA 3.0",
           "license_url": "https://creativecommons.org/licenses/by-sa/3.0/"
         }
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-entrance-1306564280",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -1.6669456,
+          48.1138585
+        ]
+      },
+      "properties": {
+        "kind": "entrance",
+        "label": "Entrée",
+        "source": "OpenStreetMap",
+        "source_id": "node/1306564280"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-entrance-1692003010",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -1.6672226,
+          48.1150624
+        ]
+      },
+      "properties": {
+        "kind": "entrance",
+        "label": "Entrée",
+        "source": "OpenStreetMap",
+        "source_id": "node/1692003010"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-entrance-1692003017",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -1.6708063,
+          48.1154565
+        ]
+      },
+      "properties": {
+        "kind": "entrance",
+        "label": "Entrée",
+        "source": "OpenStreetMap",
+        "source_id": "node/1692003017"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-entrance-2699751727",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -1.6661317,
+          48.1138821
+        ]
+      },
+      "properties": {
+        "kind": "entrance",
+        "label": "Entrée",
+        "source": "OpenStreetMap",
+        "source_id": "node/2699751727"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-entrance-4067645535",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -1.6695271,
+          48.1127222
+        ]
+      },
+      "properties": {
+        "kind": "entrance",
+        "label": "Entrée",
+        "source": "OpenStreetMap",
+        "source_id": "node/4067645535"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-entrance-4067645538",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -1.6695821,
+          48.1126484
+        ]
+      },
+      "properties": {
+        "kind": "entrance",
+        "label": "Entrée",
+        "source": "OpenStreetMap",
+        "source_id": "node/4067645538"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-entrance-4067645550",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -1.6711124,
+          48.1122487
+        ]
+      },
+      "properties": {
+        "kind": "entrance",
+        "label": "Entrée",
+        "source": "OpenStreetMap",
+        "source_id": "node/4067645550"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-entrance-4067645580",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -1.6737733,
+          48.1145146
+        ]
+      },
+      "properties": {
+        "kind": "entrance",
+        "label": "Entrée",
+        "source": "OpenStreetMap",
+        "source_id": "node/4067645580"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-entrance-4067646846",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -1.6724832,
+          48.1145042
+        ]
+      },
+      "properties": {
+        "kind": "entrance",
+        "label": "Entrée",
+        "source": "OpenStreetMap",
+        "source_id": "node/4067646846"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-entrance-4067646848",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -1.6716316,
+          48.1150148
+        ]
+      },
+      "properties": {
+        "kind": "entrance",
+        "label": "Entrée",
+        "source": "OpenStreetMap",
+        "source_id": "node/4067646848"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-thabor-path-145259767",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -1.6722277,
+            48.1150832
+          ],
+          [
+            -1.6722325,
+            48.1150664
+          ],
+          [
+            -1.6722514,
+            48.115043
+          ],
+          [
+            -1.6722777,
+            48.115026
+          ],
+          [
+            -1.6723236,
+            48.1150128
+          ],
+          [
+            -1.6723661,
+            48.1150152
+          ],
+          [
+            -1.6724039,
+            48.115022
+          ],
+          [
+            -1.6724221,
+            48.1150294
+          ],
+          [
+            -1.6724367,
+            48.1150385
+          ],
+          [
+            -1.6724508,
+            48.1150534
+          ],
+          [
+            -1.6724683,
+            48.1150875
+          ],
+          [
+            -1.6724672,
+            48.1151011
+          ],
+          [
+            -1.6724598,
+            48.1151194
+          ],
+          [
+            -1.6724416,
+            48.1151369
+          ],
+          [
+            -1.6724045,
+            48.1151588
+          ],
+          [
+            -1.6723666,
+            48.1151671
+          ],
+          [
+            -1.6723167,
+            48.1151662
+          ],
+          [
+            -1.6722841,
+            48.1151571
+          ],
+          [
+            -1.6722554,
+            48.1151379
+          ],
+          [
+            -1.6722325,
+            48.1151121
+          ],
+          [
+            -1.6722277,
+            48.1150832
+          ]
+        ]
+      },
+      "properties": {
+        "kind": "path",
+        "source": "OpenStreetMap",
+        "source_id": "way/145259767"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-thabor-path-145259768",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -1.6730145,
+            48.1151639
+          ],
+          [
+            -1.672969,
+            48.1151587
+          ],
+          [
+            -1.6724672,
+            48.1151011
+          ]
+        ]
+      },
+      "properties": {
+        "kind": "path",
+        "source": "OpenStreetMap",
+        "source_id": "way/145259768"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-thabor-path-242062581",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -1.6732047,
+            48.1151187
+          ],
+          [
+            -1.6732065,
+            48.1151113
+          ]
+        ]
+      },
+      "properties": {
+        "kind": "path",
+        "source": "OpenStreetMap",
+        "source_id": "way/242062581"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-thabor-path-242062587",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -1.6725534,
+            48.1150168
+          ],
+          [
+            -1.6724742,
+            48.1150439
+          ],
+          [
+            -1.6724508,
+            48.1150534
+          ]
+        ]
+      },
+      "properties": {
+        "kind": "path",
+        "source": "OpenStreetMap",
+        "source_id": "way/242062587"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-thabor-path-242062597",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -1.6723167,
+            48.1151662
+          ],
+          [
+            -1.6723037,
+            48.115239
+          ]
+        ]
+      },
+      "properties": {
+        "kind": "path",
+        "source": "OpenStreetMap",
+        "source_id": "way/242062597"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-thabor-path-242062604",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -1.6731079,
+            48.1148075
+          ],
+          [
+            -1.673074,
+            48.1149354
+          ],
+          [
+            -1.6730369,
+            48.1150776
+          ],
+          [
+            -1.6730373,
+            48.1150893
+          ]
+        ]
+      },
+      "properties": {
+        "kind": "path",
+        "source": "OpenStreetMap",
+        "source_id": "way/242062604"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-thabor-path-242062608",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -1.6730354,
+            48.1150957
+          ],
+          [
+            -1.6730145,
+            48.1151639
+          ]
+        ]
+      },
+      "properties": {
+        "kind": "path",
+        "source": "OpenStreetMap",
+        "source_id": "way/242062608"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-thabor-path-242062611",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -1.6732099,
+            48.1150984
+          ],
+          [
+            -1.6730779,
+            48.1150825
+          ]
+        ]
+      },
+      "properties": {
+        "kind": "path",
+        "source": "OpenStreetMap",
+        "source_id": "way/242062611"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-thabor-path-242062617",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -1.6731891,
+            48.1151811
+          ],
+          [
+            -1.6732047,
+            48.1151187
+          ]
+        ]
+      },
+      "properties": {
+        "kind": "path",
+        "source": "OpenStreetMap",
+        "source_id": "way/242062617"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-thabor-path-242062620",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -1.6731079,
+            48.1148075
+          ],
+          [
+            -1.6731112,
+            48.1147958
+          ],
+          [
+            -1.67314,
+            48.1147999
+          ]
+        ]
+      },
+      "properties": {
+        "kind": "path",
+        "source": "OpenStreetMap",
+        "source_id": "way/242062620"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-thabor-path-242062632",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -1.6730373,
+            48.1150893
+          ],
+          [
+            -1.6730354,
+            48.1150957
+          ]
+        ]
+      },
+      "properties": {
+        "kind": "path",
+        "source": "OpenStreetMap",
+        "source_id": "way/242062632"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-thabor-path-242062634",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -1.6734247,
+            48.1149777
+          ],
+          [
+            -1.6732479,
+            48.1149552
+          ],
+          [
+            -1.6732791,
+            48.1148384
+          ],
+          [
+            -1.6732843,
+            48.1148188
+          ]
+        ]
+      },
+      "properties": {
+        "kind": "path",
+        "source": "OpenStreetMap",
+        "source_id": "way/242062634"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-thabor-path-625782390",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -1.67314,
+            48.1147999
+          ],
+          [
+            -1.6732843,
+            48.1148188
+          ],
+          [
+            -1.673437,
+            48.114838
+          ]
+        ]
+      },
+      "properties": {
+        "kind": "path",
+        "source": "OpenStreetMap",
+        "source_id": "way/625782390"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-thabor-path-625782392",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -1.6734522,
+            48.1149812
+          ],
+          [
+            -1.6734247,
+            48.1149777
+          ]
+        ]
+      },
+      "properties": {
+        "kind": "path",
+        "source": "OpenStreetMap",
+        "source_id": "way/625782392"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-thabor-path-625782394",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -1.6734844,
+            48.1148666
+          ],
+          [
+            -1.6734522,
+            48.1149812
+          ],
+          [
+            -1.6734125,
+            48.1151231
+          ],
+          [
+            -1.6733599,
+            48.1151169
+          ]
+        ]
+      },
+      "properties": {
+        "kind": "path",
+        "source": "OpenStreetMap",
+        "source_id": "way/625782394"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-thabor-path-625782396",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -1.673437,
+            48.114838
+          ],
+          [
+            -1.6734901,
+            48.1148451
+          ],
+          [
+            -1.6734844,
+            48.1148666
+          ]
+        ]
+      },
+      "properties": {
+        "kind": "path",
+        "source": "OpenStreetMap",
+        "source_id": "way/625782396"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-thabor-path-625782398",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -1.6732065,
+            48.1151113
+          ],
+          [
+            -1.6732099,
+            48.1150984
+          ],
+          [
+            -1.6732479,
+            48.1149552
+          ],
+          [
+            -1.6731092,
+            48.1149394
+          ],
+          [
+            -1.673074,
+            48.1149354
+          ]
+        ]
+      },
+      "properties": {
+        "kind": "path",
+        "source": "OpenStreetMap",
+        "source_id": "way/625782398"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-thabor-path-1433739672",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -1.6733599,
+            48.1151169
+          ],
+          [
+            -1.6732099,
+            48.1150984
+          ]
+        ]
+      },
+      "properties": {
+        "kind": "path",
+        "source": "OpenStreetMap",
+        "source_id": "way/1433739672"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-thabor-path-1433739987",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -1.6732843,
+            48.1148188
+          ],
+          [
+            -1.6732888,
+            48.114802
+          ]
+        ]
+      },
+      "properties": {
+        "kind": "path",
+        "source": "OpenStreetMap",
+        "source_id": "way/1433739987"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-thabor-path-1433740399",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -1.6730666,
+            48.1150812
+          ],
+          [
+            -1.6730369,
+            48.1150776
+          ]
+        ]
+      },
+      "properties": {
+        "kind": "path",
+        "source": "OpenStreetMap",
+        "source_id": "way/1433740399"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-thabor-path-1433740401",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -1.6730779,
+            48.1150825
+          ],
+          [
+            -1.6730666,
+            48.1150812
+          ]
+        ]
+      },
+      "properties": {
+        "kind": "path",
+        "source": "OpenStreetMap",
+        "source_id": "way/1433740401"
       }
     }
   ]

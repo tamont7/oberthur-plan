@@ -121,4 +121,8 @@ Les tests couvrent le rendu WebGL, le plan vectoriel local, la sélection liste/
 - Le rendu à la demande évite les images inutiles à l’arrêt ; les points sont conservés entre les sélections et les filtres. Le fond est vectoriel et embarqué, plutôt qu’un flux de tuiles raster.
 - Le panneau mobile utilise un dialogue natif, avec fermeture Échap, confinement et restitution du focus. Les couleurs sont partagées entre liste, carte et légende.
 
-Suite logique : vérifier le tracé des allées sur place, enrichir le plan avec bancs, entrées et massifs, puis éventuellement proposer une orthophoto comme couche de contrôle activable (pas comme fond par défaut).
+Les entrées sont représentées par de petites portes sans libellé. Elles proviennent des nœuds OpenStreetMap situés sur le périmètre OSM du parc et reliés à une voie ; les portes de bâtiments et les accès explicitement privés ou verrouillés sont exclus. Cette sélection ne renseigne pas l’ouverture en temps réel.
+
+Au Thabor, les chemins piétons cartographiés autour de Saint-Melaine sont aussi inclus comme contexte, dans une zone bornée, sans étendre l’emprise officielle utilisée pour sélectionner les arbres.
+
+Suite logique : vérifier le tracé des allées sur place, enrichir le plan avec bancs et massifs, puis éventuellement proposer une orthophoto comme couche de contrôle activable (pas comme fond par défaut).

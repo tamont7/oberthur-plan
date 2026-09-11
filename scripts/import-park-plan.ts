@@ -3,6 +3,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { z } from "zod";
 import { PARK_PLAN_BOUNDS, PARK_PLAN_SOURCE_URL } from "../src/park";
 import { parseParkPlan } from "../src/plan";
+import { extractParkEntrances } from "./park-entrances";
 
 const METRO_API_URL = "https://data.rennesmetropole.fr/api/explore/v2.1/catalog/datasets/espaces_verts";
 const OSM_LICENSE_URL = "https://opendatacommons.org/licenses/odbl/1-0/";
@@ -145,6 +146,7 @@ export async function importParkPlan() {
       openstreetmap: { source_url: osmUrl.href, license: "ODbL 1.0", license_url: OSM_LICENSE_URL },
     },
     features: [
+      ...extractParkEntrances(osmValue, "Q3363871"),
       { type: "Feature", id: "rennes-parc-oberthur", geometry: official.geo_shape.geometry, properties: { kind: "boundary", source: "Rennes Métropole", source_id: official.gml_id } },
       ...water.map((way) => ({ type: "Feature" as const, id: `osm-water-${way.id}`, geometry: { type: "Polygon" as const, coordinates: [way.coordinates] }, properties: { kind: "water" as const, source: "OpenStreetMap" as const, source_id: `way/${way.id}` } })),
       ...paths.map((way) => ({ type: "Feature" as const, id: `osm-path-${way.id}`, geometry: { type: "LineString" as const, coordinates: way.coordinates }, properties: { kind: "path" as const, source: "OpenStreetMap" as const, source_id: `way/${way.id}` } })),

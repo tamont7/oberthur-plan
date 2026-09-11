@@ -11,7 +11,7 @@ test("carte, crédits, filtres, fiche et recentrage", async ({ page, isMobile },
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto("/");
   await expect(page.locator(".cesium-map")).toHaveAttribute("data-map-state", "ready");
-  await expect(page.locator(".cesium-map")).toHaveAttribute("data-plan-features", "40");
+  await expect(page.locator(".cesium-map")).toHaveAttribute("data-plan-features", "45");
   await openExplorer(page, isMobile);
   await expect(page.locator(".tree-list-item").first()).toBeVisible();
   if (!isMobile) {
@@ -115,7 +115,7 @@ test("le plan vectoriel ne dépend d’aucune tuile de fond", async ({ page }) =
   let osmTileRequest = false;
   page.on("request", (request) => { if (request.url().startsWith("https://tile.openstreetmap.org/")) osmTileRequest = true; });
   await page.goto("/");
-  await expect(page.locator(".cesium-map")).toHaveAttribute("data-plan-features", "40");
+  await expect(page.locator(".cesium-map")).toHaveAttribute("data-plan-features", "45");
   expect(osmTileRequest).toBe(false);
 });
 
@@ -123,6 +123,6 @@ test("le Thabor expose son inventaire d’arbres limité à son emprise", async 
   await page.goto("/");
   await page.getByRole("button", { name: "Thabor", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Parc du Thabor", exact: true })).toBeVisible();
-  await expect(page.locator(".cesium-map")).toHaveAttribute("data-plan-features", "279");
+  await expect(page.locator(".cesium-map")).toHaveAttribute("data-plan-features", "312");
   await expect(page.locator(".tree-list-item")).toHaveCount(1081);
 });

@@ -1,6 +1,7 @@
 import { mkdir, rename, unlink, writeFile } from "node:fs/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { z } from "zod";
+import { extractParkEntrances } from "./park-entrances";
 import { parseParkPlan } from "../src/plan";
 
 const METRO_API_URL = "https://data.rennesmetropole.fr/api/explore/v2.1/catalog/datasets/espaces_verts";
@@ -21,7 +22,7 @@ function attributes(source: string) {
   return Object.fromEntries([...source.matchAll(/([\w:-]+)="([^"]*)"/g)].map((match) => [match[1], match[2]]));
 }
 
-function parseOsmWays(xml: string) {
+export function parseOsmWays(xml: string) {
   const nodes = new Map<string, Position>();
   for (const match of xml.matchAll(/<node\b([^>]*)\/?>(?:<\/node>)?/g)) {
     const attrs = attributes(match[1]);
@@ -96,6 +97,18 @@ export function parseThaborPlan(value: unknown) {
   return parseParkPlan(value);
 }
 
+/** Keep the mapped walking approaches around Saint-Melaine as context for the park. */
+export function isThaborPath(way: OsmWay, boundary: Position[][][]) {
+  if (!["path", "footway", "pedestrian", "steps"].includes(way.tags.highway)) return false;
+  if (["private", "no"].includes(way.tags.foot ?? way.tags.access)) return false;
+  if (way.coordinates.some((point) => pointInPark(point, boundary))) return true;
+  // Deliberately bounded context: church and its adjoining gardens, not city-wide streets.
+  return way.coordinates.every(([longitude, latitude]) =>
+    longitude >= -1.67355 && longitude <= -1.6722
+    && latitude >= 48.11472 && latitude <= 48.11525,
+  );
+}
+
 export async function importThaborPlan() {
   const recordsUrl = new URL(`${METRO_API_URL}/records`);
   recordsUrl.searchParams.set("where", "nom = 'Parc du Thabor'");
@@ -112,7 +125,7 @@ export async function importThaborPlan() {
   const ways = parseOsmWays(osmValue);
   const containsPartOfPark = (way: OsmWay) => way.coordinates.some((point) => pointInPark(point, official.geo_shape.geometry.coordinates));
   const water = ways.filter((way) => (way.tags.natural === "water" || way.tags.water === "pond") && isClosed(way.coordinates) && containsPartOfPark(way));
-  const paths = ways.filter((way) => ["path", "footway", "pedestrian", "steps"].includes(way.tags.highway) && containsPartOfPark(way));
+  const paths = ways.filter((way) => isThaborPath(way, official.geo_shape.geometry.coordinates));
   const church = ways.find((way) => way.tags.name === "Notre-Dame-en-Saint-Melaine" && way.tags.building === "church" && isClosed(way.coordinates));
   const kiosk = ways.find((way) => way.tags.name === "Kiosque" && isClosed(way.coordinates));
   const orangery = ways.find((way) => way.tags.name === "Orangerie du Thabor" && isClosed(way.coordinates));
@@ -129,6 +142,7 @@ export async function importThaborPlan() {
       openstreetmap: { source_url: osmUrl.href, license: "ODbL 1.0", license_url: ODBL_URL },
     },
     features: [
+      ...extractParkEntrances(osmValue, "Q942434"),
       { type: "Feature", id: "rennes-parc-thabor", geometry: official.geo_shape.geometry, properties: { kind: "boundary", source: "Rennes Métropole", source_id: official.gml_id } },
       ...water.map((way) => ({ type: "Feature" as const, id: `osm-thabor-water-${way.id}`, geometry: { type: "Polygon" as const, coordinates: [way.coordinates] }, properties: { kind: "water" as const, source: "OpenStreetMap" as const, source_id: `way/${way.id}` } })),
       ...paths.map((way) => ({ type: "Feature" as const, id: `osm-thabor-path-${way.id}`, geometry: { type: "LineString" as const, coordinates: way.coordinates }, properties: { kind: "path" as const, source: "OpenStreetMap" as const, source_id: `way/${way.id}` } })),

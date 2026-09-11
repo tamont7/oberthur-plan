@@ -2001,6 +2001,91 @@
           "license_url": "https://creativecommons.org/licenses/by-sa/3.0/"
         }
       }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-entrance-48057219",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -1.6597055,
+          48.1139598
+        ]
+      },
+      "properties": {
+        "kind": "entrance",
+        "label": "Entrée",
+        "source": "OpenStreetMap",
+        "source_id": "node/48057219"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-entrance-1711226368",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -1.6589564,
+          48.1114917
+        ]
+      },
+      "properties": {
+        "kind": "entrance",
+        "label": "Entrée",
+        "source": "OpenStreetMap",
+        "source_id": "node/1711226368"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-entrance-2024712976",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -1.6609777,
+          48.1135585
+        ]
+      },
+      "properties": {
+        "kind": "entrance",
+        "label": "Entrée",
+        "source": "OpenStreetMap",
+        "source_id": "node/2024712976"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-entrance-2026432475",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -1.6601436,
+          48.1119526
+        ]
+      },
+      "properties": {
+        "kind": "entrance",
+        "label": "Entrée",
+        "source": "OpenStreetMap",
+        "source_id": "node/2026432475"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "osm-entrance-2026432479",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -1.6588051,
+          48.1126474
+        ]
+      },
+      "properties": {
+        "kind": "entrance",
+        "label": "Entrée",
+        "source": "OpenStreetMap",
+        "source_id": "node/2026432479"
+      }
     }
   ]
 }

@@ -1,6 +1,11 @@
 import { z } from "zod";
 
 const position = z.tuple([z.number().finite(), z.number().finite()]);
+const entrance = z.object({
+  type: z.literal("Feature"), id: z.string().min(1),
+  geometry: z.object({ type: z.literal("Point"), coordinates: position }),
+  properties: z.object({ kind: z.literal("entrance"), label: z.string().min(1), source: z.literal("OpenStreetMap"), source_id: z.string().min(1) }),
+});
 const lineString = z.object({ type: z.literal("LineString"), coordinates: z.array(position).min(2) });
 const polygon = z.object({ type: z.literal("Polygon"), coordinates: z.array(z.array(position).min(4)).min(1) });
 const multiPolygon = z.object({ type: z.literal("MultiPolygon"), coordinates: z.array(z.array(z.array(position).min(4)).min(1)).min(1) });
@@ -19,6 +24,7 @@ const landmark = z.object({
 });
 
 const planFeatureSchema = z.union([
+  entrance,
   z.object({ type: z.literal("Feature"), id: z.string().min(1), geometry: multiPolygon, properties: z.object({ kind: z.literal("boundary"), source: z.literal("Rennes Métropole"), source_id: z.string().min(1) }) }),
   z.object({ type: z.literal("Feature"), id: z.string().min(1), geometry: polygon, properties: z.object({ kind: z.literal("water"), source: z.literal("OpenStreetMap"), source_id: z.string().min(1) }) }),
   z.object({ type: z.literal("Feature"), id: z.string().min(1), geometry: lineString, properties: z.object({ kind: z.literal("path"), source: z.literal("OpenStreetMap"), source_id: z.string().min(1) }) }),
@@ -48,6 +54,7 @@ const parkPlanSchema = z.object({
 });
 
 export type PlanPosition = [number, number];
+export type ParkEntrance = z.infer<typeof entrance>;
 type PlanPolygon = PlanPosition[][];
 type PlanMultiPolygon = PlanPolygon[];
 export type PlanPhoto = { url: string; page_url: string; author: string; license: string; license_url: string };
@@ -67,6 +74,7 @@ export type ParkLandmark = {
 };
 
 export type ParkPlanFeature =
+  | ParkEntrance
   | { type: "Feature"; id: string; geometry: { type: "MultiPolygon"; coordinates: PlanMultiPolygon }; properties: { kind: "boundary"; source: "Rennes Métropole"; source_id: string } }
   | { type: "Feature"; id: string; geometry: { type: "Polygon"; coordinates: PlanPolygon }; properties: { kind: "water"; source: "OpenStreetMap"; source_id: string } }
   | { type: "Feature"; id: string; geometry: { type: "LineString"; coordinates: PlanPosition[] }; properties: { kind: "path"; source: "OpenStreetMap"; source_id: string } }

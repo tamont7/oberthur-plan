@@ -113,7 +113,11 @@ function CloseIcon() {
 function InfoIcon() {
   return <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" /><path d="M12 10.8v5.2M12 7.8h.01" /></svg>;
 }
-
+function FullscreenIcon({ active }: { active: boolean }) {
+  return active
+    ? <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" /></svg>
+    : <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4H4v5M15 4h5v5M9 20H4v-5M15 20h5v-5" /></svg>;
+}
 function MapSceneLoading() {
   return <div className="map-scene-loading" role="status">
     <div className="map-scene-loading-tree" aria-hidden="true">
@@ -142,6 +146,28 @@ function ParkTitle({ parkId, name }: { parkId: ParkView; name: string }) {
     <strong className="park-title-leaving" aria-hidden="true">{previous.name}</strong>
     <strong className="park-title-entering">{name}</strong>
   </span>;
+}
+
+function ParkPicker({ parkId, name, onChange }: { parkId: ParkView; name: string; onChange: (park: ParkView) => void }) {
+  const detailsRef = useRef<HTMLDetailsElement>(null);
+  const choose = (nextPark: ParkView) => {
+    onChange(nextPark);
+    detailsRef.current?.removeAttribute("open");
+  };
+  return <details className="park-picker" ref={detailsRef}>
+    <summary aria-label="Choisir un parc">
+      <span className="park-picker-copy"><ParkTitle parkId={parkId} name={name} /><small>2 parcs</small></span>
+      <span className="park-picker-chevron" aria-hidden="true" />
+    </summary>
+    <div className="park-picker-menu" role="group" aria-label="Parcs disponibles">
+      <button type="button" className={`park-picker-option ${parkId === "oberthur" ? "is-active" : ""}`} onClick={() => choose("oberthur")}>
+        <span><strong>Parc Oberthür</strong></span>{parkId === "oberthur" && <i aria-label="Parc sélectionné">✓</i>}
+      </button>
+      <button type="button" className={`park-picker-option ${parkId === "thabor" ? "is-active" : ""}`} onClick={() => choose("thabor")}>
+        <span><strong>Parc du Thabor</strong></span>{parkId === "thabor" && <i aria-label="Parc sélectionné">✓</i>}
+      </button>
+    </div>
+  </details>;
 }
 
 function dateLabel(value: string | null) {
@@ -299,13 +325,25 @@ function TreeDetail({
           {tree.name} ({count})
         </h2>
 
-        <button
-          className="icon-button"
-          onClick={onClose}
-          aria-label="Fermer la fiche"
-        >
-          <CloseIcon />
-        </button>
+        <div className="detail-actions">
+          <button
+            type="button"
+            className="icon-button"
+            onClick={() => setDetailsOpen((open) => !open)}
+            aria-expanded={detailsOpen}
+            aria-label={detailsOpen ? "Réduire la fiche" : "Agrandir la fiche"}
+            title={detailsOpen ? "Réduire la fiche" : "Agrandir la fiche"}
+          >
+            <FullscreenIcon active={detailsOpen} />
+          </button>
+          <button
+            className="icon-button"
+            onClick={onClose}
+            aria-label="Fermer la fiche"
+          >
+            <CloseIcon />
+          </button>
+        </div>
       </div>
 
       {scientificName && (
@@ -532,6 +570,8 @@ export default function App() {
   const [mobilePanelOpen, setMobilePanelOpen] = useState(false);
   const [mobilePanelMode, setMobilePanelMode] = useState<MobilePanelMode>("filter");
   const [isMobile, setIsMobile] = useState(() => window.matchMedia("(max-width: 760px)").matches);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const mapAreaRef = useRef<HTMLElement>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const infoDialogRef = useRef<HTMLDialogElement>(null);
   const listTriggerRef = useRef<HTMLButtonElement>(null);
@@ -580,6 +620,13 @@ export default function App() {
     const update = () => { setIsMobile(media.matches); setMobilePanelOpen(false); };
     media.addEventListener("change", update);
     return () => media.removeEventListener("change", update);
+  }, []);
+
+  useEffect(() => {
+    const updateFullscreen = () => setIsFullscreen(document.fullscreenElement === mapAreaRef.current);
+    document.addEventListener("fullscreenchange", updateFullscreen);
+    updateFullscreen();
+    return () => document.removeEventListener("fullscreenchange", updateFullscreen);
   }, []);
 
   useEffect(() => {
@@ -776,6 +823,14 @@ export default function App() {
     setMobilePanelOpen(false);
     setInfoOpen(true);
   };
+  const toggleFullscreen = async () => {
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else await mapAreaRef.current?.requestFullscreen();
+    } catch {
+      // Le navigateur peut refuser le plein écran (iframe ou réglage utilisateur).
+    }
+  };
 
   const explorer = <>
     <div className="search-combobox">
@@ -828,26 +883,22 @@ export default function App() {
   </>;
 
   return <main className="app-shell">
-    <section className={`map-area ${isParkTransitioning ? "is-transitioning" : ""}`} aria-label="Carte et fiche arbre">
+    <section ref={mapAreaRef} className={`map-area ${isParkTransitioning ? "is-transitioning" : ""}`} aria-label="Carte et fiche arbre">
       <MapBoundary key={mapAttempt} onRetry={() => setMapAttempt((value) => value + 1)}>
         <Suspense fallback={<MapSceneLoading />}>
           <MapView trees={trees} plan={plan} parkId={activePark} isParkTransitioning={isParkTransitioning} onSceneReady={() => setIsParkTransitioning(false)} visibleTrees={mapVisibleTrees} interactiveTrees={visibleTrees} selectedTree={selectedTree} focusTreeId={focusTreeId} focusRequest={focusRequest} viewMode={mapViewMode} onChangeViewMode={() => setMapViewMode((mode) => mode === "3d" ? "2d" : "3d")} isMobile={isMobile} hoveredTreeId={hoveredTreeId} onSelectTree={chooseTree} onSelectLandmark={chooseLandmark} onRecenter={() => setRecenter((value) => value + 1)} recenter={recenter} />
         </Suspense>
       </MapBoundary>
       <header className="map-header">
-        <button className="brand" onClick={returnToPark} aria-label={`${parkName} — Revenir au parc`}>
+        <button className="brand" onClick={returnToPark} aria-label={`${parkName} — Recentrer la carte`}>
           <span className="brand-mark"><LeafIcon /></span>
-          <ParkTitle parkId={activePark} name={parkName} />
+        </button>
+        <ParkPicker parkId={activePark} name={parkName} onChange={changePark} />
+        <button type="button" className="fullscreen-toggle" onClick={toggleFullscreen} aria-pressed={isFullscreen} aria-label={isFullscreen ? "Quitter le mode plein écran" : "Activer le mode plein écran"}>
+          <FullscreenIcon active={isFullscreen} />
+          <span className="sr-only">{isFullscreen ? "Quitter le mode plein écran" : "Activer le mode plein écran"}</span>
         </button>
       </header>
-      <div className="park-switcher" role="group" aria-label="Choisir un parc">
-        <button type="button" className={`park-choice ${activePark === "oberthur" ? "is-active" : ""}`} onClick={() => changePark("oberthur")} aria-pressed={activePark === "oberthur"}>
-          <i className="park-choice-symbol oberthur" aria-hidden="true" /><span>Oberthür</span>
-        </button>
-        <button type="button" className={`park-choice ${activePark === "thabor" ? "is-active" : ""}`} onClick={() => changePark("thabor")} aria-pressed={activePark === "thabor"}>
-          <i className="park-choice-symbol thabor" aria-hidden="true" /><span>Thabor</span>
-        </button>
-      </div>
       {selectedTree && <TreeDetail key={selectedTree.id} tree={selectedTree} rawFeature={data?.features.find((feature) => feature.id === selectedTree.id)} count={speciesStats.get(selectedTree.species)?.count ?? 1} onClose={closeDetail} isMobile={isMobile} />}
       {selectedLandmark && <LandmarkDetail landmark={selectedLandmark} onClose={closeLandmark} />}
       <button ref={listTriggerRef} className={`mobile-sheet-trigger ${selectedTree ? "is-hidden" : ""}`} onClick={() => openMobilePanel("filter")}

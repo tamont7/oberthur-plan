@@ -120,8 +120,9 @@ h1 { margin-bottom: 0; color: #17372c; font-family: "Fraunces", Georgia, serif; 
 .tree-detail { position: absolute; z-index: 3; left: 28px; bottom: 28px; width: min(320px, calc(100% - 56px)); border: 1px solid rgba(23, 55, 44, .12); border-radius: 10px; padding: 13px 14px 12px; background: rgba(255, 255, 255, .98); box-shadow: 0 10px 27px rgba(20, 50, 38, .16); animation: card-in .2s ease-out; touch-action: pan-x; transition: transform .16s ease-out; }
 @keyframes card-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 .detail-topline { display: flex; align-items: flex-start; justify-content: space-between; gap: 9px; }
+.detail-actions { display: flex; flex: 0 0 auto; gap: 2px; margin: -3px -3px 0 0; }
 .detail-kicker { color: #59826c; font-family: "DM Mono", monospace; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
-.tree-detail .icon-button { display: grid; place-items: center; flex: 0 0 auto; width: 27px; height: 27px; margin: -3px -3px 0 0; border: 0; border-radius: 5px; color: #789083; background: transparent; }
+.tree-detail .icon-button { display: grid; place-items: center; flex: 0 0 auto; width: 27px; height: 27px; margin: 0; border: 0; border-radius: 5px; color: #789083; background: transparent; }
 .tree-detail .icon-button:hover { color: #244a39; background: #edf3ed; }
 .icon-button { display: grid; place-items: center; flex: 0 0 auto; width: 44px; height: 44px; border: 0; border-radius: 50%; color: #537064; background: #f0f4ef; }
 .icon-button:hover { color: #244a39; background: #e3ece3; }
@@ -227,9 +228,32 @@ h1 { margin-bottom: 0; color: #17372c; font-family: "Fraunces", Georgia, serif; 
 :focus-visible { outline: 3px solid #255bca; outline-offset: 3px; }
 button, a, summary { touch-action: manipulation; }
 button:disabled { cursor: not-allowed; opacity: .65; }
-button:not(.tree-foliage):not(.tree-list-item):not(.focus-tree-button):not(.park-choice):not(.mobile-panel-direction):not(.detail-toggle):not(.map-control-button):not(.map-recenter-button):not(.map-locate-button):not(.map-dimension-button):not(.map-compass):not(.brand):not(.icon-button):not(.text-button):not(.filter-chip):not(.mobile-sheet-trigger):not(.species-option):not(.sort-option):not(.info-button):not(.search-clear) { min-height: 44px; border: 1px solid #c1d3c5; border-radius: 8px; padding: 8px 12px; background: #fff; color: #1e503c; }
+button:not(.tree-foliage):not(.tree-list-item):not(.focus-tree-button):not(.park-choice):not(.park-picker-option):not(.mobile-panel-direction):not(.detail-toggle):not(.map-control-button):not(.map-recenter-button):not(.map-locate-button):not(.map-dimension-button):not(.map-compass):not(.brand):not(.fullscreen-toggle):not(.icon-button):not(.text-button):not(.filter-chip):not(.mobile-sheet-trigger):not(.species-option):not(.sort-option):not(.info-button):not(.search-clear) { min-height: 44px; border: 1px solid #c1d3c5; border-radius: 8px; padding: 8px 12px; background: #fff; color: #1e503c; }
 .app-shell { height: 100dvh; }
 .brand { border: 0; padding: 0; text-align: left; background: rgb(251 252 249 / .94); border-radius: 24px; padding-right: 12px; }
+.map-header { justify-content: flex-start; gap: 9px; }
+.brand { padding-right: 0; pointer-events: auto; }
+.park-picker { position: relative; min-width: 0; color: #17372c; pointer-events: auto; }
+.park-picker summary { display: flex; align-items: center; gap: 9px; width: 184px; height: 42px; border: 1px solid rgba(23, 55, 44, .14); border-radius: 11px; padding: 0 11px; cursor: pointer; background: linear-gradient(135deg, rgb(255 255 255 / .98), rgb(244 248 243 / .94)); box-shadow: 0 4px 15px rgba(12, 42, 29, .1); list-style: none; transition: border-color .2s, box-shadow .2s, background .2s; }
+.park-picker summary::-webkit-details-marker { display: none; }
+.park-picker-copy { display: grid; gap: 2px; min-width: 0; }
+.park-picker-copy > span { overflow: hidden; white-space: nowrap; }
+.park-picker-copy strong { display: block; overflow: hidden; font-family: "Fraunces", Georgia, serif; font-size: 16px; font-weight: 600; letter-spacing: -.025em; text-overflow: ellipsis; }
+.park-picker-copy small { width: max-content; border-radius: 10px; padding: 1px 5px; color: #668074; background: #e8f0e9; font-family: "DM Mono", monospace; font-size: 8px; font-weight: 650; letter-spacing: .06em; line-height: 1.3; text-transform: uppercase; }
+.park-picker-chevron { width: 7px; height: 7px; margin: 0 2px 4px auto; border-right: 1.5px solid #537064; border-bottom: 1.5px solid #537064; transform: rotate(45deg); }
+.park-picker[open] summary { border-color: #88aa96; box-shadow: 0 4px 15px rgba(12, 42, 29, .14); }
+.park-picker[open] .park-picker-chevron { margin-bottom: 0; transform: rotate(225deg); }
+.park-picker-menu { position: absolute; z-index: 9; top: calc(100% + 6px); left: 0; display: grid; width: 184px; overflow: hidden; border: 1px solid #cbd9cd; border-radius: 11px; padding: 4px; background: #fff; box-shadow: 0 10px 24px rgba(20, 50, 38, .16); }
+.park-picker-option { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 44px; border: 0; border-radius: 7px; padding: 8px 10px; color: #315746; background: transparent; text-align: left; transition: color .18s, background .18s; }
+.park-picker-option:hover, .park-picker-option:focus-visible, .park-picker-option.is-active { background: #edf5ee; }
+.park-picker-option strong { font-size: 13px; font-weight: 700; }
+.park-picker-option.is-active strong::before { display: inline-block; width: 6px; height: 6px; margin: 0 7px 1px 0; border-radius: 50%; background: #4f8a69; content: ""; vertical-align: middle; }
+.park-picker-option i { color: #26704e; font-size: 14px; font-style: normal; }
+.fullscreen-toggle { display: grid; place-items: center; flex: 0 0 auto; width: 42px; height: 42px; margin-left: auto; border: 1px solid rgba(23, 55, 44, .14); border-radius: 11px; padding: 0; color: #315746; background: rgb(255 255 255 / .94); box-shadow: 0 4px 15px rgba(12, 42, 29, .1); pointer-events: auto; }
+.fullscreen-toggle:hover { color: #1e503c; background: #edf4ee; }
+.fullscreen-toggle svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
+.map-area:fullscreen { width: 100%; height: 100%; }
+.map-area::backdrop { background: #17372c; }
 .map-navigation { position: absolute; z-index: 3; right: 20px; bottom: 34px; display: grid; justify-items: center; gap: 8px; }
 .map-zoom-controls { overflow: hidden; border: 1px solid rgba(23, 55, 44, .16); border-radius: 8px; background: rgb(255 255 255 / .96); box-shadow: 0 3px 13px rgba(12, 42, 29, .12); }
 .map-control-button { display: grid; place-items: center; width: 36px; height: 34px; border: 0; padding: 0; color: #244a39; background: transparent; font-size: 24px; font-weight: 400; line-height: 1; }
@@ -267,7 +291,7 @@ button:not(.tree-foliage):not(.tree-list-item):not(.focus-tree-button):not(.park
 .park-title-entering { animation: park-title-in .34s ease both; }
 @keyframes park-title-out { to { opacity: 0; transform: translateX(-14px); } }
 @keyframes park-title-in { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: translateX(0); } }
-.map-area.is-transitioning .park-switcher { animation: park-switch-shift .44s cubic-bezier(.2, .75, .25, 1); }
+.map-area.is-transitioning .park-picker { animation: park-switch-shift .44s cubic-bezier(.2, .75, .25, 1); }
 .map-area.is-transitioning .brand-mark { animation: park-mark-turn .4s cubic-bezier(.2, .75, .25, 1); }
 @keyframes park-switch-shift { 0% { transform: translateX(9px); } 58% { transform: translateX(-2px); } 100% { transform: translateX(0); } }
 @keyframes park-mark-turn { 0% { transform: rotate(-10deg) scale(.94); } 60% { transform: rotate(3deg) scale(1.04); } 100% { transform: rotate(0) scale(1); } }
@@ -312,9 +336,16 @@ button:not(.tree-foliage):not(.tree-list-item):not(.focus-tree-button):not(.park
   .map-header { gap: 8px; }
   .info-dialog { width: calc(100vw - 24px); max-height: calc(100dvh - 24px); padding: 18px; touch-action: pan-y; overscroll-behavior: contain; }
   .map-tooltip { display: none; }
-  .map-header { right: 150px; }
+  .map-header { right: 16px; }
+  .brand-mark, .fullscreen-toggle { width: 38px; height: 38px; }
+  .park-picker summary, .park-picker-menu { width: 154px; }
+  .park-picker summary { height: 38px; padding: 0 9px; }
+  .park-picker-copy strong { font-size: 14px; }
   .map-navigation { right: 16px; bottom: calc(38px + env(safe-area-inset-bottom)); }
-  .map-navigation.is-tree-open { bottom: calc(344px + env(safe-area-inset-bottom)); }
+  /* La navigation reste juste au-dessus de la fiche résumée, sans remonter
+     inutilement sur toute la hauteur de la carte. */
+  .map-navigation.is-tree-open { bottom: calc(160px + env(safe-area-inset-bottom)); }
+  .map-area:has(.tree-detail-extra) .map-navigation { display: none; }
   .park-switcher { top: 16px; right: 16px; }
   .park-choice { min-height: 36px; padding: 4px 7px; font-size: 10px; }
   .thabor-panel { display: none; }

@@ -5,7 +5,8 @@ import { filterTrees, parseTreeData, treeColor, treeHighlight, TREE_COLORS } fro
 import { isParkLandmark, isPointInPark, parseParkPlan } from "../src/plan";
 import { createTreeCollectionSchema } from "../src/treeSchema";
 import { importRennes, normalizeRecord } from "../scripts/import-rennes";
-import { parseThaborPlan } from "../scripts/import-thabor-plan";
+import { isThaborPath, parseThaborPlan } from "../scripts/import-thabor-plan";
+import { extractParkEntrances } from "../scripts/park-entrances";
 
 const snapshot = JSON.parse(readFileSync(new URL("../public/data/arbres-rennes.geojson", import.meta.url), "utf8"));
 const planSnapshot = JSON.parse(readFileSync(new URL("../public/data/parc-oberthur.geojson", import.meta.url), "utf8"));
@@ -14,6 +15,29 @@ const thaborTreeSnapshot = JSON.parse(readFileSync(new URL("../public/data/arbre
 const plan = parseParkPlan(planSnapshot);
 const { trees, metadata } = parseTreeData(snapshot, (longitude, latitude) => isPointInPark(plan, [longitude, latitude]));
 const first = snapshot.features[0];
+
+test("les entrées sont des points OSM et les allées voisines de Saint-Melaine sont présentes", () => {
+  const thabor = parseThaborPlan(thaborPlanSnapshot);
+  assert.equal(plan.features.filter((f) => f.properties.kind === "entrance").length, 5);
+  assert.equal(thabor.features.filter((f) => f.properties.kind === "entrance").length, 10);
+  assert(thabor.features.some((f) => f.properties.source_id === "way/145259767"));
+  assert(thabor.features.some((f) => f.properties.source_id === "way/242062604"));
+  assert(!thabor.features.some((f) => f.properties.source_id === "node/14061121986"));
+  assert.equal(isThaborPath({ id: "private", coordinates: [[-1.673, 48.115]], tags: { highway: "footway", access: "private" } }, []), false);
+  assert.equal(isThaborPath({ id: "outside", coordinates: [[-1.68, 48.12]], tags: { highway: "footway" } }, []), false);
+});
+
+test("l’import des entrées exclut une porte verrouillée et une porte de bâtiment", () => {
+  const xml = `<osm>
+    <node id="1" lon="-1.66" lat="48.11"><tag k="barrier" v="gate"/></node>
+    <node id="2" lon="-1.66" lat="48.12"><tag k="barrier" v="gate"/><tag k="locked" v="yes"/></node>
+    <node id="3" lon="-1.66" lat="48.13"><tag k="entrance" v="yes"/></node>
+    <way id="10"><nd ref="1"/><nd ref="2"/><nd ref="3"/><tag k="leisure" v="park"/><tag k="wikidata" v="Q1"/></way>
+    <way id="11"><nd ref="1"/><nd ref="2"/><nd ref="3"/><tag k="highway" v="footway"/></way>
+    <way id="12"><nd ref="3"/><tag k="building" v="yes"/></way>
+  </osm>`;
+  assert.deepEqual(extractParkEntrances(xml, "Q1").map((entry) => entry.properties.source_id), ["node/1"]);
+});
 const record = { ...first.properties.source_properties, geo_shape: { geometry: first.geometry } };
 
 test("l’extrait Oberthür est valide, traçable et limité par son point GPS à l’emprise officielle", () => {

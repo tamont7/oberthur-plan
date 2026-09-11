@@ -7,6 +7,7 @@ import {
   Color,
   ColorGeometryInstanceAttribute,
   ComponentDatatype,
+  CornerType,
   CylinderGeometry,
   DirectionalLight,
   EllipsoidGeometry,
@@ -16,6 +17,7 @@ import {
   GeometryInstance,
   HeadingPitchRange,
   HeadingPitchRoll,
+  VerticalOrigin,
   Math as CesiumMath,
   Matrix3,
   Matrix4,
@@ -40,6 +42,8 @@ import {
 } from "./data";
 
 import { PARK_PLAN_BOUNDS } from "./park";
+import { buildPathNetwork, simplifyPath } from "./pathGeometry";
+import entranceIcon from "./assets/park-entrance.svg";
 
 import {
   isPointInPark,
@@ -344,6 +348,41 @@ function setParkView(
   viewer.camera.lookAtTransform(
     Matrix4.IDENTITY,
   );
+}
+
+function smoothZoomTo(
+  viewer: Viewer,
+  target: Cartesian3,
+  distanceFactor: number,
+) {
+  const camera = viewer.camera;
+  const currentDistance = Cartesian3.distance(
+    camera.positionWC,
+    target,
+  );
+
+  if (currentDistance <= 0) return;
+
+  const nextDistance = Math.max(
+    12,
+    currentDistance * distanceFactor,
+  );
+
+  camera.cancelFlight();
+  camera.flyTo({
+    destination: Cartesian3.lerp(
+      target,
+      camera.positionWC,
+      nextDistance / currentDistance,
+      new Cartesian3(),
+    ),
+    orientation: {
+      heading: camera.heading,
+      pitch: camera.pitch,
+      roll: camera.roll,
+    },
+    duration: 0.25,
+  });
 }
 
 function getTreeHeight(tree: Tree) {
@@ -2045,15 +2084,7 @@ export default function MapView(
 
           if (!target) return;
 
-          const distance = Cartesian3.distance(
-            viewer!.camera.positionWC,
-            target,
-          );
-
-          viewer!.camera.zoomIn(
-            Math.max(20, distance * 0.45),
-          );
-          viewer!.scene.requestRender();
+          smoothZoomTo(viewer!, target, 0.55);
         };
 
       viewer.scene.canvas.addEventListener(
@@ -2346,8 +2377,27 @@ export default function MapView(
     try {
       viewer.entities.removeAll();
 
+      const pathNetwork = buildPathNetwork((plan?.features ?? []).flatMap((feature) =>
+        feature.geometry.type === "LineString" ? [feature.geometry.coordinates] : [],
+      ));
+
       plan?.features.forEach(
         (feature) => {
+          if (feature.geometry.type === "Point") {
+            viewer.entities.add({
+              id: feature.id,
+              name: "Entrée",
+              position: Cartesian3.fromDegrees(...feature.geometry.coordinates, PLAN_HEIGHT + 0.5),
+              billboard: {
+                image: entranceIcon,
+                width: 18,
+                height: 18,
+                verticalOrigin: VerticalOrigin.BOTTOM,
+                disableDepthTestDistance: Number.POSITIVE_INFINITY,
+              },
+            });
+            return;
+          }
           if (
             feature.geometry.type ===
             "MultiPolygon"
@@ -2612,27 +2662,22 @@ export default function MapView(
             return;
           }
 
-          viewer.entities.add({
-            id:
-              feature.id,
-
-            polyline: {
-              positions:
-                positions(
-                  feature.geometry
-                    .coordinates,
-                ),
-
-              width: 2.8,
-
-              material:
-                Color.fromCssColorString(
-                  "#f9f5e9",
-                ),
-            },
-          });
         },
       );
+
+      pathNetwork.forEach((coordinates, index) => {
+        viewer.entities.add({
+          id: `path-network-${index}`,
+          corridor: {
+            positions: positions(simplifyPath(coordinates)),
+            // Largeur illustrative en mètres ; la source ne donne pas les largeurs.
+            width: 1.8,
+            cornerType: CornerType.ROUNDED,
+            height: PLAN_HEIGHT + 0.06,
+            material: Color.fromCssColorString("#ad9672"),
+          },
+        });
+      });
     } finally {
       viewer.entities.resumeEvents();
     }
@@ -3732,29 +3777,11 @@ export default function MapView(
       return;
     }
 
-    const currentDistance = Cartesian3.distance(
-      camera.positionWC,
+    smoothZoomTo(
+      viewer,
       target,
+      direction === "in" ? 0.78 : 1.28,
     );
-    const nextDistance = direction === "in"
-      ? Math.max(12, currentDistance * 0.78)
-      : currentDistance * 1.28;
-
-    camera.cancelFlight();
-    camera.flyTo({
-      destination: Cartesian3.lerp(
-        target,
-        camera.positionWC,
-        nextDistance / currentDistance,
-        new Cartesian3(),
-      ),
-      orientation: {
-        heading: camera.heading,
-        pitch: camera.pitch,
-        roll: camera.roll,
-      },
-      duration: 0.25,
-    });
   };
 
   const orientNorth = () => {
