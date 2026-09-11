@@ -304,25 +304,11 @@ function positions(
   );
 }
 
-function setParkView(
+function getParkViewRange(
   viewer: Viewer,
   bounds: readonly number[],
-  viewMode: "2d" | "3d" = "3d",
 ) {
-  const [west, south, east, north] =
-    bounds;
-
-  const centre =
-    Cartesian3.fromDegrees(
-      (west + east) / 2,
-      (south + north) / 2,
-    );
-
-  /*
-   * La distance n'est plus un seuil fixe : elle tient compte de la taille
-   * réelle de l'emprise et du format du canevas. Sur mobile, le champ de
-   * vision horizontal devient plus étroit et le recul s'ajuste donc de lui-même.
-   */
+  const [west, south, east, north] = bounds;
   const latitude = (south + north) / 2;
   const widthMetres = (east - west) * 111_320 * Math.cos(CesiumMath.toRadians(latitude)) + 80;
   const heightMetres = (north - south) * 111_320 + 80;
@@ -330,11 +316,21 @@ function setParkView(
   const frustum = viewer.camera.frustum as { fov?: number };
   const verticalFov = frustum.fov ?? CesiumMath.toRadians(60);
   const horizontalFov = 2 * Math.atan(Math.tan(verticalFov / 2) * aspectRatio);
-  const range = Math.max(
+  return Math.max(
     260,
     widthMetres / (2 * Math.tan(horizontalFov / 2)),
     heightMetres / (2 * Math.tan(verticalFov / 2)),
   ) * 1.16;
+}
+
+function setParkView(
+  viewer: Viewer,
+  bounds: readonly number[],
+  viewMode: "2d" | "3d" = "3d",
+) {
+  const [west, south, east, north] = bounds;
+  const centre = Cartesian3.fromDegrees((west + east) / 2, (south + north) / 2);
+  const range = getParkViewRange(viewer, bounds);
 
   viewer.camera.lookAt(
     centre,
@@ -1564,6 +1560,7 @@ export default function MapView(
 
   const [cameraHeading, setCameraHeading] = useState(0);
   const displayedHeadingRef = useRef(0);
+  const focusAnimationRef = useRef<number | null>(null);
   const locationWatchRef = useRef<number | null>(null);
   const shouldCenterOnLocationRef = useRef(false);
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
@@ -1572,6 +1569,13 @@ export default function MapView(
   useEffect(() => () => {
     if (locationWatchRef.current !== null) navigator.geolocation.clearWatch(locationWatchRef.current);
   }, []);
+
+  useEffect(() => {
+    if (locationStatus !== "too-far") return;
+
+    const timeoutId = window.setTimeout(() => setLocationStatus("idle"), 4000);
+    return () => window.clearTimeout(timeoutId);
+  }, [locationStatus]);
 
   useEffect(() => {
     const viewer = viewerRef.current;
@@ -1659,7 +1663,6 @@ export default function MapView(
     if (!viewer || !treeToFocus) return;
 
     const proportions = getTreeProportions(treeToFocus);
-    const radius = Math.max(proportions.crownRadiusX, proportions.crownRadiusY, 7);
     const centre = Cartesian3.fromDegrees(
       treeToFocus.longitude,
       treeToFocus.latitude,
@@ -1667,14 +1670,88 @@ export default function MapView(
     );
 
     viewer.camera.cancelFlight();
-    viewer.camera.flyToBoundingSphere(new BoundingSphere(centre, radius), {
-      duration: 0.75,
-      offset: new HeadingPitchRange(
-        CesiumMath.toRadians(6),
-        CesiumMath.toRadians(-66),
-        Math.max(28, radius * 2.8),
-      ),
+    if (focusAnimationRef.current !== null) window.cancelAnimationFrame(focusAnimationRef.current);
+
+    const parkRange = getParkViewRange(viewer, plan?.bbox ?? PARK_PLAN_BOUNDS);
+    const parkOffset = new HeadingPitchRange(
+      CesiumMath.toRadians(6),
+      CesiumMath.toRadians(-66),
+      parkRange,
+    );
+    const closeRange = parkRange * 0.33;
+    const closeOffset = new HeadingPitchRange(parkOffset.heading, parkOffset.pitch, closeRange);
+    const canvasCentre = new Cartesian2(viewer.scene.canvas.clientWidth / 2, viewer.scene.canvas.clientHeight / 2);
+    const currentCentre = viewer.camera.pickEllipsoid(canvasCentre, viewer.scene.globe.ellipsoid);
+    const targetOnGround = Cartesian3.fromDegrees(treeToFocus.longitude, treeToFocus.latitude);
+    const targetDistance = currentCentre ? Cartesian3.distance(currentCentre, targetOnGround) : parkRange;
+    const isNearby = targetDistance < Math.max(70, parkRange * 0.3);
+    // Le recul augmente avec la distance à parcourir, sans jamais dépasser
+    // l'échelle du parc. On évite ainsi un dézoom-rezoom complet pour un arbre voisin.
+    const transitionRange = CesiumMath.clamp(closeRange + targetDistance * 0.85, closeRange, parkRange);
+    const transitionOffset = new HeadingPitchRange(parkOffset.heading, parkOffset.pitch, transitionRange);
+    const capturePose = () => ({
+      destination: Cartesian3.clone(viewer.camera.positionWC),
+      direction: Cartesian3.clone(viewer.camera.directionWC),
+      up: Cartesian3.clone(viewer.camera.upWC),
     });
+    const initialPose = capturePose();
+
+    // Les deux cadrages sont convertis en poses caméra, puis interpolés dans
+    // une seule animation : aucun arrêt n'est visible entre eux.
+    viewer.camera.lookAt(centre, transitionOffset);
+    viewer.camera.lookAtTransform(Matrix4.IDENTITY);
+    const transitionPose = capturePose();
+    viewer.camera.lookAt(centre, closeOffset);
+    viewer.camera.lookAtTransform(Matrix4.IDENTITY);
+    const closePose = capturePose();
+    viewer.camera.setView({ destination: initialPose.destination, orientation: { direction: initialPose.direction, up: initialPose.up } });
+
+    if (isNearby) {
+      viewer.camera.flyTo({
+        destination: closePose.destination,
+        orientation: { direction: closePose.direction, up: closePose.up },
+        duration: 1.1,
+      });
+      return () => viewer.camera.cancelFlight();
+    }
+
+    // Une courbe de Bézier unique passe par le recul calculé à mi-parcours.
+    // Contrairement à deux interpolations successives, elle conserve aussi la
+    // continuité de l'accélération au moment où le mouvement se resserre.
+    const curve = (start: Cartesian3, transition: Cartesian3, end: Cartesian3, amount: number) => {
+      const inverse = 1 - amount;
+      const startWeight = inverse ** 5 + 5 * inverse ** 4 * amount;
+      const transitionWeight = 10 * inverse ** 3 * amount ** 2 + 10 * inverse ** 2 * amount ** 3;
+      const endWeight = 5 * inverse * amount ** 4 + amount ** 5;
+      const control = Cartesian3.add(
+        Cartesian3.multiplyByScalar(transition, 1.6, new Cartesian3()),
+        Cartesian3.multiplyByScalar(Cartesian3.add(start, end, new Cartesian3()), -0.3, new Cartesian3()),
+        new Cartesian3(),
+      );
+      const value = Cartesian3.multiplyByScalar(start, startWeight, new Cartesian3());
+      Cartesian3.add(value, Cartesian3.multiplyByScalar(control, transitionWeight, new Cartesian3()), value);
+      return Cartesian3.add(value, Cartesian3.multiplyByScalar(end, endWeight, new Cartesian3()), value);
+    };
+    const startedAt = performance.now();
+    const animate = (now: number) => {
+      const progress = Math.min(1, (now - startedAt) / 3200);
+      const pose = {
+        destination: curve(initialPose.destination, transitionPose.destination, closePose.destination, progress),
+        direction: Cartesian3.normalize(curve(initialPose.direction, transitionPose.direction, closePose.direction, progress), new Cartesian3()),
+        up: Cartesian3.normalize(curve(initialPose.up, transitionPose.up, closePose.up, progress), new Cartesian3()),
+      };
+
+      viewer.camera.setView({ destination: pose.destination, orientation: { direction: pose.direction, up: pose.up } });
+      viewer.scene.requestRender();
+      if (progress < 1) focusAnimationRef.current = window.requestAnimationFrame(animate);
+      else focusAnimationRef.current = null;
+    };
+
+    focusAnimationRef.current = window.requestAnimationFrame(animate);
+    return () => {
+      if (focusAnimationRef.current !== null) window.cancelAnimationFrame(focusAnimationRef.current);
+      focusAnimationRef.current = null;
+    };
   }, [trees, focusTreeId, focusRequest, revision]);
 
   /* Houppier temporairement rendu au premier plan lors d'un cadrage. */
@@ -1772,6 +1849,10 @@ export default function MapView(
       | null = null;
 
     let draggedAt = 0;
+
+    let lastTouchTap:
+      | { x: number; y: number; time: number }
+      | null = null;
 
     try {
       viewer =
@@ -1913,6 +1994,79 @@ export default function MapView(
 
       viewer.screenSpaceEventHandler.removeInputAction(
         ScreenSpaceEventType.LEFT_DOUBLE_CLICK,
+      );
+
+      /*
+       * Cesium associe le double-clic à la souris, pas au double-tap.
+       * Le pincement reste géré par le contrôleur caméra ; ce geste ajoute
+       * simplement un zoom rapide et prévisible au doigt.
+       */
+      const zoomOnDoubleTap =
+        (event: PointerEvent) => {
+          if (
+            !isMobileRef.current ||
+            event.pointerType !== "touch" ||
+            !event.isPrimary
+          ) {
+            return;
+          }
+
+          const rect = viewer!.scene.canvas.getBoundingClientRect();
+          const position = new Cartesian2(
+            event.clientX - rect.left,
+            event.clientY - rect.top,
+          );
+          const now = performance.now();
+          const previousTap = lastTouchTap;
+
+          lastTouchTap = {
+            x: position.x,
+            y: position.y,
+            time: now,
+          };
+
+          if (
+            !previousTap ||
+            now - previousTap.time > 300 ||
+            Math.hypot(
+              position.x - previousTap.x,
+              position.y - previousTap.y,
+            ) > 32
+          ) {
+            return;
+          }
+
+          lastTouchTap = null;
+
+          const target = viewer!.camera.pickEllipsoid(
+            position,
+            viewer!.scene.globe.ellipsoid,
+          );
+
+          if (!target) return;
+
+          const distance = Cartesian3.distance(
+            viewer!.camera.positionWC,
+            target,
+          );
+
+          viewer!.camera.zoomIn(
+            Math.max(20, distance * 0.45),
+          );
+          viewer!.scene.requestRender();
+        };
+
+      viewer.scene.canvas.addEventListener(
+        "pointerup",
+        zoomOnDoubleTap,
+      );
+
+      cleanups.push(
+        () =>
+          viewer?.scene.canvas.removeEventListener(
+            "pointerup",
+            zoomOnDoubleTap,
+          ),
       );
 
       interactions =
@@ -3560,10 +3714,47 @@ export default function MapView(
   const changeZoom = (direction: "in" | "out") => {
     const viewer = viewerRef.current;
     if (!viewer) return;
-    const distance = Math.max(12, viewer.camera.positionCartographic.height * 0.2);
-    if (direction === "in") viewer.camera.zoomIn(distance);
-    else viewer.camera.zoomOut(distance);
-    viewer.scene.requestRender();
+
+    const camera = viewer.camera;
+    const target = camera.pickEllipsoid(
+      new Cartesian2(
+        viewer.scene.canvas.clientWidth / 2,
+        viewer.scene.canvas.clientHeight / 2,
+      ),
+      viewer.scene.globe.ellipsoid,
+    );
+
+    if (!target) {
+      const distance = Math.max(12, camera.positionCartographic.height * 0.2);
+      if (direction === "in") camera.zoomIn(distance);
+      else camera.zoomOut(distance);
+      viewer.scene.requestRender();
+      return;
+    }
+
+    const currentDistance = Cartesian3.distance(
+      camera.positionWC,
+      target,
+    );
+    const nextDistance = direction === "in"
+      ? Math.max(12, currentDistance * 0.78)
+      : currentDistance * 1.28;
+
+    camera.cancelFlight();
+    camera.flyTo({
+      destination: Cartesian3.lerp(
+        target,
+        camera.positionWC,
+        nextDistance / currentDistance,
+        new Cartesian3(),
+      ),
+      orientation: {
+        heading: camera.heading,
+        pitch: camera.pitch,
+        roll: camera.roll,
+      },
+      duration: 0.25,
+    });
   };
 
   const orientNorth = () => {
@@ -3592,6 +3783,8 @@ export default function MapView(
           shouldCenterOnLocationRef.current = false;
           setUserLocation(null);
           setLocationStatus("too-far");
+          navigator.geolocation.clearWatch(locationWatchRef.current!);
+          locationWatchRef.current = null;
           return;
         }
 

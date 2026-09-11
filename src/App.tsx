@@ -702,6 +702,7 @@ export default function App() {
     setMobilePanelOpen(false);
   };
   const focusTree = (tree: Tree) => {
+    if (focusTreeId === tree.id) return;
     setFocusTreeId(tree.id);
     setFocusRequest((request) => request + 1);
     setSelectedId(tree.id);

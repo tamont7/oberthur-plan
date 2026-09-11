@@ -16,6 +16,7 @@ button { cursor: pointer; }
 .map-area { position: relative; order: 2; flex: 1; min-width: 0; background: #c7d5c2; }
 .cesium-map { position: absolute; inset: 0; }
 .cesium-viewer, .cesium-viewer-cesiumWidget, .cesium-widget { width: 100%; height: 100%; }
+.cesium-map canvas { touch-action: none; }
 .map-scene-loading { position: absolute; z-index: 6; inset: 0; display: grid; align-content: center; justify-items: center; gap: 5px; color: #315746; background: radial-gradient(circle at 50% 42%, #f8fbf5 0 12%, #e8f0e4 43%, #d4e3d2 100%); opacity: 1; visibility: visible; transition: opacity .22s ease; }
 .map-scene-loading.is-ready { opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .38s ease, visibility 0s linear .38s; }
 .map-scene-loading p { margin: 14px 0 0; font-family: "Fraunces", Georgia, serif; font-size: 19px; font-weight: 600; letter-spacing: -.025em; }
@@ -242,7 +243,7 @@ button:not(.tree-foliage):not(.tree-list-item):not(.focus-tree-button):not(.park
 .map-locate-button:active { transform: translateY(0) scale(.96); }
 .map-locate-button.is-active { border-color: #15559f; background: #155fac; box-shadow: 0 5px 16px rgba(21, 85, 159, .38), 0 0 0 3px rgba(40, 117, 207, .18); }
 .map-locate-button svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-width: 1.8; }
-.map-location-notice { position: absolute; z-index: 4; right: 66px; bottom: 44px; max-width: 245px; margin: 0; border: 1px solid #cde0d1; border-radius: 8px; padding: 8px 10px; color: #315746; background: rgb(251 252 249 / .96); box-shadow: 0 4px 14px rgba(12, 42, 29, .12); font-size: 11px; line-height: 1.35; }
+.map-location-notice { position: absolute; z-index: 4; bottom: 24px; left: 50%; max-width: calc(100% - 32px); margin: 0; border: 1px solid #cde0d1; border-radius: 8px; padding: 8px 10px; color: #315746; background: rgb(251 252 249 / .96); box-shadow: 0 4px 14px rgba(12, 42, 29, .12); font-size: 11px; line-height: 1.35; transform: translateX(-50%); }
 .map-location-notice.is-error { border-color: #e7c8a5; color: #754b22; background: #fff9f0; }
 .map-compass { position: relative; display: grid; place-items: center; width: 40px; height: 40px; border: 1px solid rgba(23, 55, 44, .16); border-radius: 12px; padding: 0; color: #315746; background: rgb(255 255 255 / .96); box-shadow: 0 3px 13px rgba(12, 42, 29, .12); }
 .map-compass:hover { background: #edf4ee; }
