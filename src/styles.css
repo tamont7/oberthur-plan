@@ -365,3 +365,7 @@ button:not(.tree-foliage):not(.tree-list-item):not(.focus-tree-button):not(.park
 
 .tree-foliage.is-leaf-only { width: 43px; }
 .botanical-drawings.is-leaf-only { grid-template-columns: minmax(0, 240px); justify-content: center; }
+
+/* Compact brand icon alongside the park picker. */
+.brand { flex: 0 0 auto; border-radius: 9px; }
+.brand-mark { flex: 0 0 auto; border-radius: 9px; background: #244a3a; box-shadow: none; }

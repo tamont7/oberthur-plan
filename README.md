@@ -1,6 +1,8 @@
-# Parc Oberthür — V1.4
+# Parc Rennes — V1.4
 
-Carte des arbres du parc à Rennes : React, TypeScript, Vite et CesiumJS, avec un extrait réel de l’inventaire de Rennes Métropole. Le brief d’origine est dans [softplan.md](softplan.md) et les évolutions sont consignées dans [CHANGELOG.md](CHANGELOG.md).
+**Les parcs et leurs arbres.**
+
+Carte des arbres des parcs de Rennes : React, TypeScript, Vite et CesiumJS, avec un extrait réel de l’inventaire de Rennes Métropole. Le brief d’origine est dans [softplan.md](softplan.md) et les évolutions sont consignées dans [CHANGELOG.md](CHANGELOG.md).
 
 ## Démarrage
 
@@ -126,3 +128,18 @@ Les entrées sont représentées par de petites portes sans libellé. Elles prov
 Au Thabor, les chemins piétons cartographiés autour de Saint-Melaine sont aussi inclus comme contexte, dans une zone bornée, sans étendre l’emprise officielle utilisée pour sélectionner les arbres.
 
 Suite logique : vérifier le tracé des allées sur place, enrichir le plan avec bancs et massifs, puis éventuellement proposer une orthophoto comme couche de contrôle activable (pas comme fond par défaut).
+
+
+## Adresses des parcs
+
+- `/` : accueil sur Oberthür.
+- `/oberthur` : lien direct vers le parc Oberthür.
+- `/thabor` : lien direct vers le parc du Thabor.
+
+Le changement de parc met à jour l’adresse ; précédent et suivant restaurent le parc.
+Les anciens liens `?plan=thabor` restent compatibles.
+
+En production, configurer l’hébergeur pour servir `index.html` sur ces routes
+(réécriture SPA), afin que les liens directs et leur rechargement fonctionnent.
+Vite le fait en développement et en prévisualisation. Le domaine envisagé est
+`parc-rennes.fr` ; son enregistrement et le renommage du dépôt distant restent séparés.

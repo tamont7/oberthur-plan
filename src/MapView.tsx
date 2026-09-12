@@ -2090,19 +2090,8 @@ export default function MapView(
         if (!isSecondTap) return;
 
         lastTouchTap = null;
-        const target = viewer!.camera.pickEllipsoid(
-          position,
-          viewer!.scene.globe.ellipsoid,
-        );
-
-        if (!target) return;
-
-        touchZoomGesture = {
-          pointerId: event.pointerId,
-          lastY: event.clientY,
-          target,
-        };
-        viewer!.scene.screenSpaceCameraController.enableInputs = false;
+        changeZoomInRef.current?.();
+        touchZoomJustEnded = true;
         event.preventDefault();
         event.stopImmediatePropagation();
       };

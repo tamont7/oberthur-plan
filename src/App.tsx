@@ -10,6 +10,13 @@ const PLAN_URL = `${import.meta.env.BASE_URL}data/parc-oberthur.geojson`;
 const THABOR_PLAN_URL = `${import.meta.env.BASE_URL}data/parc-thabor.geojson`;
 const EMPTY_TREES: Tree[] = [];
 type ParkView = "oberthur" | "thabor";
+
+function parkFromLocation(): ParkView {
+  const path = window.location.pathname.replace(/\/+$/, "");
+  if (path === `${import.meta.env.BASE_URL}thabor`) return "thabor";
+  if (path === `${import.meta.env.BASE_URL}oberthur`) return "oberthur";
+  return new URLSearchParams(window.location.search).get("plan") === "thabor" ? "thabor" : "oberthur";
+}
 type MapViewMode = "2d" | "3d";
 type MobilePanelMode = "filter" | "list";
 const WIKIPEDIA_SEARCH_URL = "https://fr.wikipedia.org/w/index.php?search=";
@@ -553,7 +560,7 @@ export default function App() {
   const [dataAttempt, setDataAttempt] = useState(0);
   const [mapAttempt, setMapAttempt] = useState(0);
   const MapView = useMemo(() => lazy(() => import("./MapView")), [mapAttempt]);
-  const [activePark, setActivePark] = useState<ParkView>(() => new URLSearchParams(window.location.search).get("plan") === "thabor" ? "thabor" : "oberthur");
+  const [activePark, setActivePark] = useState<ParkView>(parkFromLocation);
   const [query, setQuery] = useState("");
   const [selectedSpecies, setSelectedSpecies] = useState("");
   const [speciesSort, setSpeciesSort] = useState<TreeSort>("vernacular");
@@ -581,6 +588,39 @@ export default function App() {
   const [explorerDragOffset, setExplorerDragOffset] = useState(0);
   const parkName = activePark === "thabor" ? "Parc du Thabor" : "Parc Oberthür";
   const treeDataUrl = activePark === "thabor" ? THABOR_DATA_URL : DATA_URL;
+
+  useEffect(() => {
+    const onPopState = () => {
+      const nextPark = parkFromLocation();
+      if (nextPark !== activePark) {
+        setIsParkTransitioning(true);
+        setActivePark(nextPark);
+      }
+    };
+    window.addEventListener("popstate", onPopState);
+    // Preserve older shared links while giving them the new address.
+    const url = new URL(window.location.href);
+    if (url.searchParams.has("plan")) {
+      url.pathname = `${import.meta.env.BASE_URL}${parkFromLocation()}`;
+      url.searchParams.delete("plan");
+      window.history.replaceState({}, "", url);
+    }
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [activePark]);
+
+  useEffect(() => {
+    document.title = `${parkName} — Parc Rennes`;
+    setQuery("");
+    setSelectedSpecies("");
+    setSpeciesSort("vernacular");
+    setSearchSuggestionsOpen(false);
+    setSelectedId(null);
+    setSelectedLandmark(null);
+    setFocusTreeId(null);
+    setHoveredTreeId(null);
+    setMobilePanelOpen(false);
+  }, [activePark, parkName]);
+
 
   useEffect(() => {
     const controller = new AbortController();
@@ -786,16 +826,9 @@ export default function App() {
     if (nextPark === activePark) return;
     setIsParkTransitioning(true);
     setActivePark(nextPark);
-    setQuery("");
-    setSelectedSpecies("");
-    setSpeciesSort("vernacular");
-    setSearchSuggestionsOpen(false);
-    setSelectedId(null);
-    setSelectedLandmark(null);
-    setMobilePanelOpen(false);
     const url = new URL(window.location.href);
-    if (nextPark === "thabor") url.searchParams.set("plan", "thabor");
-    else url.searchParams.delete("plan");
+    url.pathname = `${import.meta.env.BASE_URL}${nextPark}`;
+    url.searchParams.delete("plan");
     window.history.pushState({}, "", url);
   };
   const beginExplorerSwipe = (event: PointerEvent<HTMLElement>) => {
@@ -892,7 +925,7 @@ export default function App() {
       </MapBoundary>
       <header className="map-header">
         <button className="brand" onClick={returnToPark} aria-label={`${parkName} — Recentrer la carte`}>
-          <span className="brand-mark"><LeafIcon /></span>
+          <img className="brand-mark" src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" />
         </button>
         <ParkPicker parkId={activePark} name={parkName} onChange={changePark} />
         <button type="button" className="fullscreen-toggle" onClick={toggleFullscreen} aria-pressed={isFullscreen} aria-label={isFullscreen ? "Quitter le mode plein écran" : "Activer le mode plein écran"}>
