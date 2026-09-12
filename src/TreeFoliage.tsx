@@ -123,9 +123,9 @@ function Branch({ kind, fill }: { kind: Foliage["kind"]; fill?: string }) {
     const flat = kind !== "cypressSpray";
     return <>
       <path d="M60 118V17" stroke="#827052" strokeWidth="2" />
-      {[{x:60,y:99,a:0,n:14}, ...[56,78,100].flatMap(y => [{x:60,y,a:flat ? -55 : -27,n:7},{x:60,y:y-5,a:flat ? 55 : 27,n:7}])].map(({x,y,a,n}) => <g key={`${y}-${a}`} transform={`translate(${x} ${y}) rotate(${a})`}>
-        <path d={`M0 3V${-n*5}`} stroke={fill} strokeWidth="5" />
-        {Array.from({length:n},(_,i) => <path key={i} d={`M0 ${-i*5}q-5-2-4-8l4 4 4-4q1 6-4 8Z`} fill={kind === "zebrina" && i % 5 < 2 ? "#d2cb7c" : fill} strokeWidth=".6" />)}
+      {[{x:60,y:99,a:0,n:17}, ...[56,78,100].flatMap(y => [{x:60,y,a:flat ? -55 : -27,n:7},{x:60,y:y-5,a:flat ? 55 : 27,n:7}])].map(({x,y,a,n}) => <g key={`${y}-${a}`} transform={`translate(${x} ${y}) rotate(${a})`}>
+        <path d={`M0 3V${-(n-1)*5}`} stroke={fill} strokeWidth="5" />
+        {Array.from({length:n},(_,i) => <path key={i} d={i === n-1 ? `M0 ${-i*5}q-4-3 0-9q4 6 0 9Z` : `M0 ${-i*5}q-5-2-4-8l4 4 4-4q1 6-4 8Z`} fill={kind === "zebrina" && i % 5 < 2 ? "#d2cb7c" : fill} strokeWidth=".6" />)}
         {flat && [-1,1].map(side => <g key={side} transform={`translate(0 -17) rotate(${side*38})`}>
           {[0,1,2,3].map(i => <path key={i} d={`M0 ${-i*5}l-4-8 4 3 4-3Z`} fill={kind === "zebrina" && i < 2 ? "#d2cb7c" : fill} strokeWidth=".6" />)}
         </g>)}
@@ -157,7 +157,11 @@ function Branch({ kind, fill }: { kind: Foliage["kind"]; fill?: string }) {
     })}
   </>;
   if (kind === "yew" || kind === "fir") return <>
-    <path d="M60 116V15" stroke="#8b7450" strokeWidth="2" />
+    <path d="M60 116V17" stroke="#8b7450" strokeWidth="2" />
+    <path d="M58 18Q57 13 60 10Q63 13 62 18Z" fill="#8b7450" stroke="#6e5c3e" strokeWidth=".6" />
+    {[-1,1].map(side => <g key={side} transform={`translate(60 ${side < 0 ? 23 : 25}) rotate(${side*32})`}>
+      <path d={kind === "fir" ? "M-1 0-1.5-9Q-1-12 0-11Q1-12 1.5-9L1 0Z" : "M0 0Q-2-6 0-13Q2-6 0 0Z"} fill={fill} strokeWidth=".6" />
+    </g>)}
     {Array.from({ length: 12 }, (_, i) => [-1, 1].map((side) => {
       const y = 30 + i * 6;
       const length = 22 + Math.sin(i / 12 * Math.PI) * 13;
@@ -187,7 +191,8 @@ function Branch({ kind, fill }: { kind: Foliage["kind"]; fill?: string }) {
     </g>)}
   </>;
   if (kind === "flat") return <>
-    <path d="M60 111V16" stroke="#8b7450" />
+    <path d="M60 111V20" stroke="#8b7450" />
+    <path d="M60 23Q51 18 53 10Q60 13 60 23Q69 18 67 10Q60 13 60 23Z" fill={fill} strokeWidth=".8" />
     {Array.from({ length: 10 }, (_, i) => {
       const y = 30 + i * 7;
       const width = 13 + Math.sin(i / 10 * Math.PI) * 23;

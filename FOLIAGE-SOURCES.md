@@ -122,3 +122,9 @@ Dessins SVG originaux simplifiés, sans échelle commune. Les liens des deux cul
 ### Révision de la feuille d’Albizia
 
 La première version laissait dépasser les axes et superposait des folioles trop larges. La révision termine l’axe principal au niveau de la paire apicale, affine et espace les folioles, et réduit leur taille aux extrémités. La feuille reste bipennée, sans foliole terminale simple ajoutée artificiellement. Le SVG révisé a été rendu localement et inspecté visuellement, avec une marge conservée dans le cadre.
+
+## Revue du cadrage et des extrémités — 12 septembre 2026
+
+Les 61 entrées illustrées présentes dans les deux jeux de données ont été rendues localement en planches et inspectées : 61 feuillages et 60 fruits ou organes reproducteurs. Les samares largement ouvertes des érables dépassaient du cadre ; elles sont maintenant réduites uniformément autour du centre, sans changer leur angle. Les sommets des rameaux d’if commun et de sapin de Nordmann reçoivent de petites aiguilles apicales et un bourgeon schématique ; les extrémités des séquoias à feuilles plates et du cyprès chauve sont complétées. Les rameaux de cyprès d’Italie, de Lawson et de thuya ‘Zebrina’ portent des écailles jusqu’à une extrémité effilée. L’if ‘Fastigiata’ ne présentait pas de troncature et conserve son dessin.
+
+Un rendu avec un cadre élargi a servi à rechercher les tracés sortant du viewBox normal, y compris les contours : aucun débordement résiduel détecté sur les 121 SVG. Cette revue porte sur le dessin et son cadrage ; elle ne constitue pas une validation scientifique des planches.

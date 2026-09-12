@@ -181,7 +181,7 @@ function FruitDrawing({ fruit }: { fruit: Fruit }) {
       : fruit.taxon === "Acer pseudoplatanus" || fruit.taxon === "Acer rubrum" ? 30
       : fruit.taxon === "Acer platanoides" ? 80 : 65;
     const red = fruit.taxon === "Acer rubrum";
-    return <g stroke={red ? "#8b4c42" : "#827142"}>
+    return <g stroke={red ? "#8b4c42" : "#827142"} transform={angle >= 65 ? "translate(60 62) scale(.72) translate(-60 -62)" : undefined}>
       <path d="M60 12V36" fill="none" strokeWidth="2" />
       {[-1, 1].map((side) => <g key={side} transform={`translate(${60 + side * 5} 42) rotate(${-side * angle})`}>
         <path d="M-4 -4Q-15 12 -13 39Q-11 70 2 66Q10 56 7 39L5 2Z" fill={red ? "#b77964" : "#b8a472"} />
