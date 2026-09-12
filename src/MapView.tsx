@@ -42,7 +42,7 @@ import {
 } from "./data";
 
 import { PARK_PLAN_BOUNDS } from "./park";
-import { createLocationFilter, MAX_LOCATION_AGE_MS, PRECISE_LOCATION_METRES, readLocation, type UserLocation } from "./geolocation";
+import { MAX_LOCATION_AGE_MS, PRECISE_LOCATION_METRES, readLocation, type UserLocation } from "./geolocation";
 import { buildPathNetwork, simplifyPath } from "./pathGeometry";
 import entranceIcon from "./assets/park-entrance.svg";
 
@@ -1609,16 +1609,14 @@ export default function MapView(
   const [completedFocusRequest, setCompletedFocusRequest] = useState(0);
   const displayedHeadingRef = useRef(0);
   const focusAnimationRef = useRef<number | null>(null);
-  const locationWatchRef = useRef<number | null>(null);
   const shouldCenterOnLocationRef = useRef(false);
+  const locationRequestRef = useRef(0);
+  const locationLongPressRef = useRef<number | null>(null);
+  const ignoreLocationClickRef = useRef(false);
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
   const [locationStatus, setLocationStatus] = useState<"idle" | "locating" | "imprecise" | "stale" | "too-far" | "error">("idle");
   const [locationNoticeVisible, setLocationNoticeVisible] = useState(true);
   const [locationRequest, setLocationRequest] = useState(0);
-
-  useEffect(() => () => {
-    if (locationWatchRef.current !== null) navigator.geolocation.clearWatch(locationWatchRef.current);
-  }, []);
 
   useEffect(() => {
     if (!userLocation) return;
@@ -1629,15 +1627,6 @@ export default function MapView(
   }, [userLocation]);
 
   useEffect(() => {
-    if (locationStatus !== "locating") return;
-    const timeoutId = window.setTimeout(() => {
-      shouldCenterOnLocationRef.current = false;
-      setLocationStatus("imprecise");
-    }, 20_000);
-    return () => window.clearTimeout(timeoutId);
-  }, [locationStatus, locationRequest]);
-
-  useEffect(() => {
     setLocationNoticeVisible(true);
     if (!["too-far", "error", "imprecise", "stale"].includes(locationStatus)) return;
 
@@ -1645,6 +1634,10 @@ export default function MapView(
     const timeoutId = window.setTimeout(() => setLocationNoticeVisible(false), 4000);
     return () => window.clearTimeout(timeoutId);
   }, [locationStatus, locationRequest]);
+
+  useEffect(() => () => {
+    if (locationLongPressRef.current !== null) window.clearTimeout(locationLongPressRef.current);
+  }, []);
 
   useEffect(() => {
     const viewer = viewerRef.current;
@@ -3933,54 +3926,61 @@ export default function MapView(
     }
 
     shouldCenterOnLocationRef.current = true;
-    if (userLocation && Date.now() - userLocation.timestamp < MAX_LOCATION_AGE_MS) {
-      centerOnLocation(userLocation);
-      setLocationStatus("idle");
-      return;
-    }
     setLocationStatus("locating");
+    const requestId = ++locationRequestRef.current;
 
-    if (locationWatchRef.current !== null) navigator.geolocation.clearWatch(locationWatchRef.current);
-
-    const filterLocation = createLocationFilter();
-    locationWatchRef.current = navigator.geolocation.watchPosition(
+    navigator.geolocation.getCurrentPosition(
       (position) => {
+        if (requestId !== locationRequestRef.current) return;
         const measurement = readLocation(position);
         if (!measurement) {
+          shouldCenterOnLocationRef.current = false;
           setLocationStatus("imprecise");
           return;
         }
 
         if (!isNearCurrentPark(measurement, planRef.current)) {
-          // A coarse first fix must not stop acquisition before GPS improves it.
+          shouldCenterOnLocationRef.current = false;
           setLocationStatus(measurement.accuracy > PRECISE_LOCATION_METRES ? "imprecise" : "too-far");
           return;
         }
 
-        const nextLocation = filterLocation(measurement);
-        // Keep the last dot until confirmation, without extending its expiry time.
-        if (!nextLocation) return;
-
-        setUserLocation(nextLocation);
+        setUserLocation(measurement);
         setLocationStatus("idle");
-
-        // Consume only the explicit button request; subsequent fixes move the dot alone.
-        if (shouldCenterOnLocationRef.current) centerOnLocation(nextLocation);
+        if (shouldCenterOnLocationRef.current) centerOnLocation(measurement);
       },
       (error) => {
-        // Timeouts and temporary signal loss must not stop GPS refinement.
-        if (error.code !== 1) {
-          setLocationStatus("imprecise");
-          return;
-        }
-        setUserLocation(null);
+        if (requestId !== locationRequestRef.current) return;
         shouldCenterOnLocationRef.current = false;
-        setLocationStatus("error");
-        if (locationWatchRef.current !== null) navigator.geolocation.clearWatch(locationWatchRef.current);
-        locationWatchRef.current = null;
+        setLocationStatus(error.code === 1 ? "error" : "imprecise");
       },
       { enableHighAccuracy: true, maximumAge: 0, timeout: 20_000 },
     );
+  };
+
+  const disableLocation = () => {
+    locationRequestRef.current += 1;
+    shouldCenterOnLocationRef.current = false;
+    setUserLocation(null);
+    setLocationStatus("idle");
+    setLocationNoticeVisible(false);
+  };
+
+  const startLocationLongPress = () => {
+    if (!userLocation) return;
+    locationLongPressRef.current = window.setTimeout(() => {
+      locationLongPressRef.current = null;
+      ignoreLocationClickRef.current = true;
+      disableLocation();
+    }, 650);
+  };
+
+  const cancelLocationLongPress = (cancelled = false) => {
+    if (locationLongPressRef.current !== null) {
+      window.clearTimeout(locationLongPressRef.current);
+      locationLongPressRef.current = null;
+    }
+    if (cancelled) ignoreLocationClickRef.current = false;
   };
 
   return (
@@ -4021,7 +4021,13 @@ export default function MapView(
       </div>
 
       <div className={`map-navigation ${selectedTree ? "is-tree-open" : ""}`} aria-label="Navigation de la carte">
-        <button type="button" className={`map-locate-button ${userLocation ? "is-active" : ""}`} onClick={locateUser} aria-label="Me localiser" title="Me localiser">
+        <button type="button" className={`map-locate-button ${userLocation ? "is-active" : ""}`} onClick={() => {
+          if (ignoreLocationClickRef.current) {
+            ignoreLocationClickRef.current = false;
+            return;
+          }
+          locateUser();
+        }} onPointerDown={startLocationLongPress} onPointerUp={() => cancelLocationLongPress()} onPointerLeave={() => cancelLocationLongPress(true)} onPointerCancel={() => cancelLocationLongPress(true)} aria-label="Me localiser" title="Me localiser — maintenir appuyé pour désactiver">
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" /><circle cx="12" cy="12" r="7.5" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3" /></svg>
         </button>
         <button type="button" className="map-recenter-button" onClick={onRecenter} aria-label="Recentrer la carte sur le parc" title="Recentrer sur le parc">
@@ -4040,8 +4046,8 @@ export default function MapView(
       </div>
 
       {locationStatus === "locating" && <p className="map-location-notice" role="status">Localisation en cours…</p>}
-      {locationNoticeVisible && locationStatus === "imprecise" && <p className="map-location-notice" role="status">Position non obtenue pour le parc. La recherche continue…</p>}
-      {locationNoticeVisible && locationStatus === "stale" && <p className="map-location-notice" role="status">Dernière position connue. En attente d’une mise à jour…</p>}
+      {locationNoticeVisible && locationStatus === "imprecise" && <p className="map-location-notice" role="status">Position non obtenue pour le parc. Relancez la localisation si besoin.</p>}
+      {locationNoticeVisible && locationStatus === "stale" && <p className="map-location-notice" role="status">Dernière position connue. Relancez la localisation pour l’actualiser.</p>}
       {locationStatus === "idle" && userLocation && <p className="map-location-notice" role="status">{userLocation.accuracy > PRECISE_LOCATION_METRES ? "Position approximative. " : ""}Précision estimée : {Math.ceil(userLocation.accuracy)} m. Le cercle indique la zone d’incertitude.</p>}
       {locationNoticeVisible && locationStatus === "too-far" && <p className="map-location-notice is-error" role="alert">Vous êtes trop loin du parc affiché.</p>}
       {locationNoticeVisible && locationStatus === "error" && <p className="map-location-notice is-error" role="alert">La position n’a pas pu être obtenue. Vérifiez l’autorisation de localisation.</p>}

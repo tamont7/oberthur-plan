@@ -58,3 +58,67 @@ Les formes supplémentaires sont définies dans `src/additionalFoliage.ts`. Les 
 | Acer rubrum | [Oregon State University](https://landscapeplants.oregonstate.edu/plants/acer-rubrum) | Exemple à trois lobes dentés, vert en saison végétative ; samares rouge brun à environ 60°. |
 
 Ces schémas supplémentaires interprètent les descriptions morphologiques des sources ; ils ne sont pas des décalques photographiques. Les formes et les teintes restent schématiques. Aucun nouveau téléchargement, paquet ou appel réseau à l’affichage.
+
+
+## Dix taxons fréquents supplémentaires — 12 septembre 2026
+
+Sélection parmi les noms scientifiques précis encore sans schéma, par effectif cumulé dans les fichiers Oberthür et Thabor. Les dix taxons couvrent 400 arbres supplémentaires ; les genres seuls et les cultivars non documentés ne sont pas extrapolés. À égalité de dix arbres, le sapin de Nordmann a été retenu.
+
+| Taxon dans les données | Effectif | Référence consultée | Caractères représentés |
+| --- | ---: | --- | --- |
+| Aesculus hippocastanum | 126 | [Oregon State University](https://landscapeplants.oregonstate.edu/plants/aesculus-hippocastanum) | Sept folioles palmées et dentées ; capsule épineuse ouverte et graine brune à cicatrice claire. |
+| Taxus baccata | 93 | [Oregon State University](https://landscapeplants.oregonstate.edu/plants/taxus-baccata) | Aiguilles plates pointues ; graine dans une arille rouge ouverte au sommet, sur les arbres femelles. |
+| Ilex aquifolium | 50 | [Oregon State University](https://landscapeplants.oregonstate.edu/plants/ilex-aquifolium) | Feuille vert sombre à marge ondulée épineuse ; fruits rouges sur les arbres femelles. |
+| Magnolia grandiflora | 30 | [Oregon State University](https://landscapeplants.oregonstate.edu/plants/magnolia-grandiflora) | Feuille elliptique entière persistante ; fruit composé de follicules avec graines rouges. |
+| Magnolia x soulangeana | 24 | [Oregon State University](https://landscapeplants.oregonstate.edu/plants/magnolia-soulangiana) | Feuille obovale caduque à pointe courte ; fruit composé irrégulier, graines rouges. La source présente les graphies soulangeana et soulangiana. |
+| Quercus rubra | 19 | [Oregon State University](https://landscapeplants.oregonstate.edu/plants/quercus-rubra) | Feuille à lobes pointus, verte en été ; gland avec cupule très peu profonde. |
+| Tilia x euchlora | 18 | [Oregon State University](https://landscapeplants.oregonstate.edu/plants/tilia-euchlora) | Feuille cordiforme dentée vert sombre ; petits fruits avec bractée. |
+| Trachycarpus fortunei | 16 | [NC State University](https://plants.ces.ncsu.edu/plants/trachycarpus-fortunei/) | Palme divisée en dix-neuf segments plissés ; drupes bleu-noir sur une portion de l’infrutescence femelle. |
+| Celtis australis | 14 | [RHS](https://www.rhs.org.uk/plants/28947/celtis-australis/details) | Feuille dentée à pointe allongée ; petites drupes sombres pédonculées. |
+| Abies nordmanniana | 10 | [Oregon State University](https://landscapeplants.oregonstate.edu/plants/abies-nordmanniana) | Aiguilles orientées vers l’avant, extrémité arrondie échancrée ; cône cylindrique dressé. |
+
+Les marqueurs d’hybride `x` et `×` sont acceptés ; l’épithète est conservée lors de la sélection du fruit. Les dessins restent des SVG originaux simplifiés, sans échelle commune ni garantie de fructification de chaque individu. Les feuilles sont représentées de dessus. L’arille de l’if et le cône du sapin sont légendés comme tels. Le lien RHS du micocoulier documente à la fois la feuille et le fruit.
+
+
+## Deuxième série de dix taxons fréquents — 12 septembre 2026
+
+Sélection par effectif cumulé encore sans schéma. À égalité de huit arbres, les cinq entrées retenues sont le houx ‘J.C. van Tol’, l’if ‘Fastigiata’, l’arbre de Judée, le frêne à fleurs et le platane d’Orient. Les noms limités au genre restent sans schéma. Cette série ajoute 87 arbres.
+
+| Nom dans les données | Effectif | Source consultée | Caractères représentés |
+| --- | ---: | --- | --- |
+| Sassafras albidum | 10 | [Oregon State University](https://landscapeplants.oregonstate.edu/plants/sassafras-albidum) | Exemple de feuille trilobée entière ; drupe bleu-noir sur réceptacle et pédoncule rouges. L’espèce porte aussi des feuilles non lobées ou en moufle. |
+| Cupressus sempervirens | 10 | [Oregon State University](https://landscapeplants.oregonstate.edu/plants/cupressus-sempervirens) | Écailles sur rameaux cylindriques ; cône subglobuleux à ellipsoïde, ligneux et brun à maturité. |
+| Chamaecyparis lawsoniana | 9 | [Oregon State University](https://landscapeplants.oregonstate.edu/plants/chamaecyparis-lawsoniana) | Ramules aplaties ramifiées avec écailles opposées ; petits cônes globuleux. |
+| Laurus nobilis | 9 | [Oregon State University](https://landscapeplants.oregonstate.edu/plants/laurus-nobilis) | Feuille elliptique allongée à bord entier ondulé ; drupe ovoïde noire, sur pied femelle. |
+| Prunus cerasifera Pissardii | 9 | [RHS](https://www.rhs.org.uk/plants/99810/prunus-cerasifera-pissardii/details), [NC State University](https://plants.ces.ncsu.edu/plants/prunus-cerasifera/) | Feuille ovale dentée pourpre ; prune rouge sombre. La fructification peut être peu abondante. |
+| Ilex aquifolium J.C Van Tol | 8 | [RHS](https://www.rhs.org.uk/plants/75559/ilex-aquifolium-j-c-van-tol-f/details) | Feuille ovale presque sans épines ; fruits rouges. Ponctuation municipale explicitement rapprochée de ‘J.C. van Tol’, cultivar femelle autofertile. |
+| Taxus baccata Fastigiata | 8 | [Oregon State University](https://landscapeplants.oregonstate.edu/plants/taxus-baccata-fastigiata) et [fiche de l’espèce](https://landscapeplants.oregonstate.edu/plants/taxus-baccata) | Rameau dressé à aiguilles sombres ; graine dans son arille rouge. Cultivar généralement femelle, avec parfois des fleurs mâles sur certaines branches. |
+| Cercis siliquastrum | 8 | [Oregon State University](https://landscapeplants.oregonstate.edu/plants/cercis-siliquastrum) | Feuille arrondie à base cordiforme, sans dents ni pointe aiguë ; gousses plates brunes. |
+| Fraxinus ornus | 8 | [Oregon State University](https://landscapeplants.oregonstate.edu/plants/fraxinus-ornus) | Feuille pennée à sept folioles ; samares simples allongées en groupe. |
+| Platanus orientalis | 8 | [RHS](https://www.rhs.org.uk/plants/details?plantid=1487) | Feuille palmée profondément découpée ; plusieurs boules de fruits sur un pédoncule. |
+
+Les silhouettes sont des SVG originaux simplifiés, sans échelle commune entre espèces. Le dessin du cyprès de Lawson représente le feuillage adulte de dessus, sans les marques blanches du revers. Aucun cultivar supplémentaire n’est déduit automatiquement de son espèce.
+
+
+## Dix taxons prioritaires à Oberthür — 12 septembre 2026
+
+Sélection sur les effectifs du seul parc Oberthür encore sans schéma. À égalité de deux arbres, le laurier-palme et le catalpa sont retenus. Cette série couvre 31 arbres supplémentaires à Oberthür.
+
+| Nom dans les données | Effectif Oberthür | Source consultée | Caractères représentés |
+| --- | ---: | --- | --- |
+| Chamaecyparis lawsoniana Allumii | 4 | [Oregon State University, cultivar](https://landscapeplants.oregonstate.edu/plants/chamaecyparis-lawsoniana-alumii) et [espèce](https://landscapeplants.oregonstate.edu/plants/chamaecyparis-lawsoniana) | Ramules aplaties bleu-gris ; petits cônes globuleux, peu abondants chez ce cultivar. Allumii est donné comme synonyme d’Alumii. |
+| Hovenia dulcis | 4 | [Oregon State University](https://landscapeplants.oregonstate.edu/plants/hovenia-dulcis) | Feuille ovale dentée ; petits fruits brun-gris à l’extrémité de pédoncules épaissis, représentés séparément des fruits. |
+| Thuja plicata Zebrina | 4 | [Oregon State University, cultivar](https://landscapeplants.oregonstate.edu/plants/thuja-plicata-zebrina) et [espèce](https://landscapeplants.oregonstate.edu/plants/thuja-plicata) | Ramules en écailles panachées de bandes jaunes ; petits cônes elliptiques dressés. |
+| Abies pinsapo | 3 | [Oregon State University](https://landscapeplants.oregonstate.edu/plants/abies-pinsapo) | Aiguilles courtes, épaisses et radiales ; cône cylindrique dressé. |
+| Albizzia julibrissin | 3 | [Oregon State University](https://landscapeplants.oregonstate.edu/plants/albizia-julibrissin) | Graphie municipale rapprochée explicitement d’Albizia julibrissin ; feuille bipennée à petites folioles oblongues ; gousses plates, légèrement courbées. |
+| Liquidambar styraciflua | 3 | [Oregon State University](https://landscapeplants.oregonstate.edu/plants/liquidambar-styraciflua) | Feuille verte étoilée à cinq lobes dentés ; boule ligneuse de capsules, ouvertures et pointes visibles. |
+| Aesculus sylvatica | 3 | [Oregon State University](https://landscapeplants.oregonstate.edu/plants/aesculus-sylvatica) | Cinq folioles palmées ; capsule lisse ouverte et graine brune, sans les épines du marronnier commun. |
+| Salix caprea | 3 | [Woodland Trust](https://www.woodlandtrust.org.uk/trees-woods-and-wildlife/british-trees/a-z-of-british-trees/goat-willow/) | Feuille ovale à pointe décentrée, vue de dessus ; infrutescence femelle portant des graines cotonneuses. Le dessin ne représente pas les chatons mâles à pollen. |
+| Prunus laurocerasus | 2 | [Oregon State University](https://landscapeplants.oregonstate.edu/plants/prunus-laurocerasus) | Feuille oblongue vert sombre à denture discrète ; drupes noir-pourpre sur une grappe. |
+| Catalpa bignonioides | 2 | [Oregon State University](https://landscapeplants.oregonstate.edu/plants/catalpa-bignonioides) | Feuille cordiforme entière à pointe effilée ; longues capsules étroites pendantes, brunes à maturité. |
+
+Dessins SVG originaux simplifiés, sans échelle commune. Les liens des deux cultivars de conifères sont complétés dans la fenêtre agrandie par la fiche d’espèce décrivant les cônes. Les données municipales ne sont pas modifiées ; les correspondances de graphie restent explicites, sans extrapolation à d’autres cultivars.
+
+### Révision de la feuille d’Albizia
+
+La première version laissait dépasser les axes et superposait des folioles trop larges. La révision termine l’axe principal au niveau de la paire apicale, affine et espace les folioles, et réduit leur taille aux extrémités. La feuille reste bipennée, sans foliole terminale simple ajoutée artificiellement. Le SVG révisé a été rendu localement et inspecté visuellement, avec une marge conservée dans le cadre.

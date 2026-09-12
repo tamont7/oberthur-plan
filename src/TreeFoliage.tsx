@@ -4,7 +4,7 @@ import { useEffect, useId, useRef } from "react";
 import { createPortal } from "react-dom";
 import { additionalFoliage } from "./additionalFoliage";
 
-export type Foliage = { sourceUrl?: string; sourceTaxon?: string; fill?: string; stroke?: string; label: string; description: string; outline?: string; veins?: string; veinStroke?: string; veinWidth?: number; midrib?: string; midribStroke?: string; kind?: "flat" | "cedar" | "giant" | "compound" };
+export type Foliage = { sourceUrl?: string; sourceTaxon?: string; fill?: string; stroke?: string; label: string; description: string; outline?: string; veins?: string; veinStroke?: string; veinWidth?: number; midrib?: string; midribStroke?: string; kind?: "flat" | "cedar" | "giant" | "compound" | "horsechestnut" | "palm" | "yew" | "fir" | "irishYew" | "ash" | "cypressSpray" | "lawsonSpray" | "zebrina" | "pinsapo" | "bipinnate" | "woodlandBuckeye" };
 const beech: Foliage = {
   label: "Feuille de hêtre", description: "Feuille ovale verte, nervures latérales bien marquées.", fill: "#668b3e", stroke: "#304d22",
   outline: "M60 100C36 94 22 78 26 60C23 44 42 27 60 12C78 28 95 43 92 60C98 78 81 94 60 100Z",
@@ -83,14 +83,90 @@ const foliageByTaxon: Record<string, Foliage> = {
 };
 
 export function foliageForTree(tree: Pick<Tree, "scientificName">): Foliage | null {
-  let taxon = tree.scientificName?.trim().toLowerCase().replace(/[’']/g, "").replace(/\s+/g, " ") ?? "";
+  let taxon = tree.scientificName?.trim().toLowerCase().replace(/[’']/g, "").replace(/×/g, "x").replace(/\s+/g, " ") ?? "";
   // Explicit spelling correction in the municipal dataset; source data stays intact.
-  if (taxon === "platanus × hispanica") taxon = "platanus x hispanica";
+  if (taxon === "ilex aquifolium j.c. van tol") taxon = "ilex aquifolium j.c van tol";
+  if (taxon === "chamaecyparis lawsoniana alumii") taxon = "chamaecyparis lawsoniana allumii";
+  if (taxon === "albizia julibrissin") taxon = "albizzia julibrissin";
   if (taxon === "cedrus libanii") taxon = "cedrus libani";
   return Object.prototype.hasOwnProperty.call(foliageByTaxon, taxon) ? foliageByTaxon[taxon] : null;
 }
 
 function Branch({ kind, fill }: { kind: Foliage["kind"]; fill?: string }) {
+  if (kind === "pinsapo") return <>
+    <path d="M60 117V14" stroke="#877252" strokeWidth="3" />
+    {Array.from({length: 16}, (_, i) => [-1,0,1].map(side => <g key={`${i}-${side}`} transform={`translate(60 ${24+i*5.3}) rotate(${side*83+(i%2 ? 10 : -10)})`}>
+      <path d="M-1 0-2-11 0-19 2-11 1 0Z" fill={fill} strokeWidth=".6" />
+    </g>))}
+  </>;
+  if (kind === "bipinnate") return <>
+    <path d="M60 119V30" stroke="#7e8452" strokeWidth="1.2" />
+    {[{y:30,n:7,a:35},{y:46,n:9,a:58},{y:62,n:11,a:64},{y:78,n:12,a:68},{y:94,n:11,a:72},{y:108,n:9,a:76}].flatMap(({y,n,a}) => [-1,1].map(side => <g key={`${y}-${side}`} transform={`translate(60 ${y}) rotate(${side*a})`}>
+      <path d={`M0 0V${-n*3.2-2}`} stroke="#7e8452" strokeWidth=".65" />
+      {Array.from({length:n},(_,j) => {
+        const d = (j+1)*3.2;
+        const size = j === n-1 ? .7 : j === 0 ? .8 : 1;
+        return <g key={j} transform={`translate(0 ${-d}) scale(${size})`}>
+          <path d="M0 0C-2 .4-5-1-5-2.5C-4-4-1-2 0 0ZM0 0C2 .4 5-1 5-2.5C4-4 1-2 0 0Z" fill={fill} strokeWidth=".3" />
+        </g>;
+      })}
+    </g>))}
+  </>;
+  if (kind === "ash") return <>
+    <path d="M60 119V25" stroke="#7d7950" strokeWidth="2" />
+    {[{x:60,y:42,a:0}, ...[58,80,102].flatMap(y => [{x:60,y,a:-57},{x:60,y,a:57}])].map(({x,y,a}) => <g key={`${y}-${a}`} transform={`translate(${x} ${y}) rotate(${a})`}>
+      <path d="M0 0Q-11-6-12-15L-14-18-12-21-13-24-10-27-10-30 0-41 10-30 10-27 13-24 12-21 14-18 12-15Q11-6 0 0Z" fill={fill} />
+      <path d="M0 0V-35M0-10-9-18M0-20-8-28M0-10 9-18M0-20 8-28" stroke="#9aae6e" strokeWidth=".7" />
+    </g>)}
+  </>;
+  if (kind === "cypressSpray" || kind === "lawsonSpray" || kind === "zebrina") {
+    const flat = kind !== "cypressSpray";
+    return <>
+      <path d="M60 118V17" stroke="#827052" strokeWidth="2" />
+      {[{x:60,y:99,a:0,n:14}, ...[56,78,100].flatMap(y => [{x:60,y,a:flat ? -55 : -27,n:7},{x:60,y:y-5,a:flat ? 55 : 27,n:7}])].map(({x,y,a,n}) => <g key={`${y}-${a}`} transform={`translate(${x} ${y}) rotate(${a})`}>
+        <path d={`M0 3V${-n*5}`} stroke={fill} strokeWidth="5" />
+        {Array.from({length:n},(_,i) => <path key={i} d={`M0 ${-i*5}q-5-2-4-8l4 4 4-4q1 6-4 8Z`} fill={kind === "zebrina" && i % 5 < 2 ? "#d2cb7c" : fill} strokeWidth=".6" />)}
+        {flat && [-1,1].map(side => <g key={side} transform={`translate(0 -17) rotate(${side*38})`}>
+          {[0,1,2,3].map(i => <path key={i} d={`M0 ${-i*5}l-4-8 4 3 4-3Z`} fill={kind === "zebrina" && i < 2 ? "#d2cb7c" : fill} strokeWidth=".6" />)}
+        </g>)}
+      </g>)}
+    </>;
+  }
+  if (kind === "irishYew") return <>
+    <path d="M60 118V14" stroke="#85704e" strokeWidth="2" />
+    {Array.from({length:14},(_,i) => [-1,0,1].map(side => <g key={`${i}-${side}`} transform={`translate(${60+side*2} ${29+i*6}) rotate(${side*43+(i%2 ? 6 : -6)})`}>
+      <path d="M0 0Q-4-14 0-25Q4-14 0 0Z" fill={fill} strokeWidth=".6" />
+    </g>))}
+  </>;
+
+  if (kind === "horsechestnut" || kind === "woodlandBuckeye") return <>
+    <path d="M60 119V79" stroke="#88714b" strokeWidth="2" />
+    {(kind === "woodlandBuckeye" ? [-72, -36, 0, 36, 72] : [-100, -68, -34, 0, 34, 68, 100]).map((angle) => <g key={angle} transform={`translate(60 79) rotate(${angle}) scale(${Math.abs(angle) > 80 ? .56 : Math.abs(angle) > 40 ? .75 : .95})`}>
+      <path d="M0 0Q-9-12-12-25L-16-30-13-35-17-40-13-45-16-50-11-55-10-61 0-73 10-61 11-55 16-50 13-45 17-40 13-35 16-30 12-25Q9-12 0 0Z" fill={fill} />
+      <path d="M0 0V-67M0-20-10-30M0-34-12-44M0-48-9-56M0-20 10-30M0-34 12-44M0-48 9-56" stroke="#9aae6e" strokeWidth=".9" />
+    </g>)}
+  </>;
+  if (kind === "palm") return <>
+    <path d="M60 119V77" stroke="#807449" strokeWidth="3" />
+    {Array.from({ length: 19 }, (_, i) => {
+      const angle = -108 + i * 12;
+      return <g key={i} transform={`translate(60 77) rotate(${angle})`}>
+        <path d="M0 0-5-28-3-58 0-55 3-58 5-28Z" fill={i % 2 ? "#527844" : fill} />
+        <path d="M0 0V-54" stroke="#9aae6e" strokeWidth=".6" />
+      </g>;
+    })}
+  </>;
+  if (kind === "yew" || kind === "fir") return <>
+    <path d="M60 116V15" stroke="#8b7450" strokeWidth="2" />
+    {Array.from({ length: 12 }, (_, i) => [-1, 1].map((side) => {
+      const y = 30 + i * 6;
+      const length = 22 + Math.sin(i / 12 * Math.PI) * 13;
+      return <g key={`${i}-${side}`} transform={`translate(60 ${y + (side > 0 ? 2 : 0)}) rotate(${side * (kind === "fir" ? 48 : 67)})`}>
+        <path d={kind === "fir" ? `M-1 0L-2 ${-length + 3}Q-2 ${-length} 0 ${-length + 1}Q2 ${-length} 2 ${-length + 3}L1 0Z` : `M0 0Q-3-12 0 ${-length}Q3-12 0 0Z`} fill={fill} strokeWidth=".7" />
+      </g>;
+    }))}
+  </>;
+
   if (kind === "compound") return <>
     <path d="M60 117V45" stroke="#b88889" strokeWidth="2" />
     {[{ y: 62, angle: 0, scale: 1 }, { y: 75, angle: -57, scale: .84 }, { y: 75, angle: 57, scale: .84 }, { y: 99, angle: -62, scale: .8 }, { y: 99, angle: 62, scale: .8 }].map(({ y, angle, scale }) =>
@@ -178,7 +254,7 @@ export function TreeFoliage({ tree }: { tree: Tree }) {
           <figcaption>{fruit.label}</figcaption>
         </figure>}
       </div>
-      <p className="botanical-source">Source : <a href={foliage.sourceUrl} target="_blank" rel="noreferrer">{foliage.sourceUrl?.includes("rhs.org.uk") ? "RHS" : foliage.sourceUrl?.includes("ncsu.edu") ? "NC State University" : "Oregon State University"} ↗</a>{foliage.sourceUrl?.includes("rhs.org.uk") && fruit && <> · <a href={`${osu}${fruit.taxon.toLowerCase().replace(/ /g, "-")}`} target="_blank" rel="noreferrer">Oregon State University ↗</a></>}</p>
+      <p className="botanical-source">Source : <a href={foliage.sourceUrl} target="_blank" rel="noreferrer">{foliage.sourceUrl?.includes("rhs.org.uk") ? "RHS" : foliage.sourceUrl?.includes("woodlandtrust.org.uk") ? "Woodland Trust" : foliage.sourceUrl?.includes("ncsu.edu") ? "NC State University" : "Oregon State University"} ↗</a>{foliage.sourceTaxon === "Fagus sylvatica 'Laciniata'" && fruit && <> · <a href={`${osu}${fruit.taxon.toLowerCase().replace(/ /g, "-")}`} target="_blank" rel="noreferrer">Oregon State University ↗</a></>}{["Thuja plicata 'Zebrina'", "Chamaecyparis lawsoniana 'Alumii'"].includes(taxon) && fruit && <> · <a href={`${osu}${fruit.taxon.toLowerCase().replace(/ /g, "-")}`} target="_blank" rel="noreferrer">Oregon State University (cône) ↗</a></>}{foliage.sourceTaxon === "Prunus cerasifera 'Pissardii'" && <> · <a href="https://plants.ces.ncsu.edu/plants/prunus-cerasifera/" target="_blank" rel="noreferrer">NC State University (fruit) ↗</a></>}</p>
     </dialog>, document.body)}
   </>;
 }
