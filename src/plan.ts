@@ -101,6 +101,10 @@ export function isParkLandmark(feature: ParkPlanFeature): feature is ParkLandmar
   return feature.properties.kind === "building" || feature.properties.kind === "landmark";
 }
 
+export function isParkEntrance(feature: ParkPlanFeature): feature is ParkEntrance {
+  return feature.properties.kind === "entrance";
+}
+
 function pointOnSegment([longitude, latitude]: PlanPosition, [fromLongitude, fromLatitude]: PlanPosition, [toLongitude, toLatitude]: PlanPosition) {
   const cross = (longitude - fromLongitude) * (toLatitude - fromLatitude) - (latitude - fromLatitude) * (toLongitude - fromLongitude);
   if (Math.abs(cross) > 1e-11) return false;
