@@ -168,10 +168,10 @@ function ParkPicker({ parkId, name, onChange }: { parkId: ParkView; name: string
     </summary>
     <div className="park-picker-menu" role="group" aria-label="Parcs disponibles">
       <button type="button" className={`park-picker-option ${parkId === "oberthur" ? "is-active" : ""}`} onClick={() => choose("oberthur")}>
-        <span><strong>Parc Oberthür</strong></span>{parkId === "oberthur" && <i aria-label="Parc sélectionné">✓</i>}
+        <span><strong>Parc Oberthür</strong></span>{parkId === "oberthur" && <i aria-label="Parc sélectionné" />}
       </button>
       <button type="button" className={`park-picker-option ${parkId === "thabor" ? "is-active" : ""}`} onClick={() => choose("thabor")}>
-        <span><strong>Parc du Thabor</strong></span>{parkId === "thabor" && <i aria-label="Parc sélectionné">✓</i>}
+        <span><strong>Parc du Thabor</strong></span>{parkId === "thabor" && <i aria-label="Parc sélectionné" />}
       </button>
     </div>
   </details>;

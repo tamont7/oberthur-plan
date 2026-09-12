@@ -249,8 +249,7 @@ button:not(.tree-foliage):not(.tree-list-item):not(.focus-tree-button):not(.park
 .park-picker-option { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 44px; border: 0; border-radius: 7px; padding: 8px 10px; color: #315746; background: transparent; text-align: left; transition: color .18s, background .18s; }
 .park-picker-option:hover, .park-picker-option:focus-visible, .park-picker-option.is-active { background: #edf5ee; }
 .park-picker-option strong { font-size: 13px; font-weight: 700; }
-.park-picker-option.is-active strong::before { display: inline-block; width: 6px; height: 6px; margin: 0 7px 1px 0; border-radius: 50%; background: #4f8a69; content: ""; vertical-align: middle; }
-.park-picker-option i { color: #26704e; font-size: 14px; font-style: normal; }
+.park-picker-option i { display: block; width: 7px; height: 7px; flex: 0 0 7px; border-radius: 50%; background: #4f8a69; }
 .fullscreen-toggle { display: grid; place-items: center; flex: 0 0 auto; width: 42px; height: 42px; margin-left: auto; border: 1px solid rgba(23, 55, 44, .14); border-radius: 11px; padding: 0; color: #315746; background: rgb(255 255 255 / .94); box-shadow: 0 4px 15px rgba(12, 42, 29, .1); pointer-events: auto; }
 .fullscreen-toggle:hover { color: #1e503c; background: #edf4ee; }
 .fullscreen-toggle svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
