@@ -1608,7 +1608,6 @@ export default function MapView(
   const [cameraHeading, setCameraHeading] = useState(0);
   const [completedFocusRequest, setCompletedFocusRequest] = useState(0);
   const displayedHeadingRef = useRef(0);
-  const focusAnimationRef = useRef<number | null>(null);
   const shouldCenterOnLocationRef = useRef(false);
   const locationRequestRef = useRef(0);
   const locationLongPressRef = useRef<number | null>(null);
@@ -1739,8 +1738,6 @@ export default function MapView(
     );
 
     viewer.camera.cancelFlight();
-    if (focusAnimationRef.current !== null) window.cancelAnimationFrame(focusAnimationRef.current);
-
     const parkRange = getParkViewRange(viewer, plan?.bbox ?? PARK_PLAN_BOUNDS);
     const parkOffset = new HeadingPitchRange(
       CesiumMath.toRadians(6),
@@ -1755,7 +1752,7 @@ export default function MapView(
     const targetDistance = currentCentre ? Cartesian3.distance(currentCentre, targetOnGround) : parkRange;
     const isNearby = targetDistance < Math.max(70, parkRange * 0.3);
     // Le recul augmente avec la distance à parcourir, sans jamais dépasser
-    // l'échelle du parc. On évite ainsi un dézoom-rezoom complet pour un arbre voisin.
+    // l'échelle du parc. Un arbre voisin est cadré directement.
     const transitionRange = CesiumMath.clamp(closeRange + targetDistance * 0.85, closeRange, parkRange);
     const transitionOffset = new HeadingPitchRange(parkOffset.heading, parkOffset.pitch, transitionRange);
     const capturePose = () => ({
@@ -1765,8 +1762,6 @@ export default function MapView(
     });
     const initialPose = capturePose();
 
-    // Les deux cadrages sont convertis en poses caméra, puis interpolés dans
-    // une seule animation : aucun arrêt n'est visible entre eux.
     viewer.camera.lookAt(centre, transitionOffset);
     viewer.camera.lookAtTransform(Matrix4.IDENTITY);
     const transitionPose = capturePose();
@@ -1775,55 +1770,42 @@ export default function MapView(
     const closePose = capturePose();
     viewer.camera.setView({ destination: initialPose.destination, orientation: { direction: initialPose.direction, up: initialPose.up } });
 
+    // Chaque phase est animée par Cesium. On conserve le recul, le déplacement
+    // puis le resserrage du cadrage sans imposer setView à chaque image depuis
+    // React, qui était la source des saccades du vol précédent.
+    let cancelled = false;
+    const finishFocus = () => {
+      if (!cancelled) setCompletedFocusRequest(focusRequest);
+    };
+    const flyClose = () => {
+      if (cancelled) return;
+      viewer.camera.flyTo({
+        destination: closePose.destination,
+        orientation: { direction: closePose.direction, up: closePose.up },
+        duration: 0.65,
+        complete: finishFocus,
+      });
+    };
+
     if (isNearby) {
       viewer.camera.flyTo({
         destination: closePose.destination,
         orientation: { direction: closePose.direction, up: closePose.up },
-        duration: 1.1,
-        complete: () => setCompletedFocusRequest(focusRequest),
+        duration: 0.8,
+        complete: finishFocus,
       });
-      return () => viewer.camera.cancelFlight();
+    } else {
+      viewer.camera.flyTo({
+        destination: transitionPose.destination,
+        orientation: { direction: transitionPose.direction, up: transitionPose.up },
+        duration: 0.75,
+        complete: flyClose,
+      });
     }
 
-    // Une courbe de Bézier unique passe par le recul calculé à mi-parcours.
-    // Contrairement à deux interpolations successives, elle conserve aussi la
-    // continuité de l'accélération au moment où le mouvement se resserre.
-    const curve = (start: Cartesian3, transition: Cartesian3, end: Cartesian3, amount: number) => {
-      const inverse = 1 - amount;
-      const startWeight = inverse ** 5 + 5 * inverse ** 4 * amount;
-      const transitionWeight = 10 * inverse ** 3 * amount ** 2 + 10 * inverse ** 2 * amount ** 3;
-      const endWeight = 5 * inverse * amount ** 4 + amount ** 5;
-      const control = Cartesian3.add(
-        Cartesian3.multiplyByScalar(transition, 1.6, new Cartesian3()),
-        Cartesian3.multiplyByScalar(Cartesian3.add(start, end, new Cartesian3()), -0.3, new Cartesian3()),
-        new Cartesian3(),
-      );
-      const value = Cartesian3.multiplyByScalar(start, startWeight, new Cartesian3());
-      Cartesian3.add(value, Cartesian3.multiplyByScalar(control, transitionWeight, new Cartesian3()), value);
-      return Cartesian3.add(value, Cartesian3.multiplyByScalar(end, endWeight, new Cartesian3()), value);
-    };
-    const startedAt = performance.now();
-    const animate = (now: number) => {
-      const progress = Math.min(1, (now - startedAt) / 3200);
-      const pose = {
-        destination: curve(initialPose.destination, transitionPose.destination, closePose.destination, progress),
-        direction: Cartesian3.normalize(curve(initialPose.direction, transitionPose.direction, closePose.direction, progress), new Cartesian3()),
-        up: Cartesian3.normalize(curve(initialPose.up, transitionPose.up, closePose.up, progress), new Cartesian3()),
-      };
-
-      viewer.camera.setView({ destination: pose.destination, orientation: { direction: pose.direction, up: pose.up } });
-      viewer.scene.requestRender();
-      if (progress < 1) focusAnimationRef.current = window.requestAnimationFrame(animate);
-      else {
-        focusAnimationRef.current = null;
-        setCompletedFocusRequest(focusRequest);
-      }
-    };
-
-    focusAnimationRef.current = window.requestAnimationFrame(animate);
     return () => {
-      if (focusAnimationRef.current !== null) window.cancelAnimationFrame(focusAnimationRef.current);
-      focusAnimationRef.current = null;
+      cancelled = true;
+      viewer.camera.cancelFlight();
     };
   }, [trees, focusTreeId, focusRequest, revision]);
 
