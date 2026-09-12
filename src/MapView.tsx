@@ -44,14 +44,12 @@ import {
 import { PARK_PLAN_BOUNDS } from "./park";
 import { MAX_LOCATION_AGE_MS, PRECISE_LOCATION_METRES, readLocation, type UserLocation } from "./geolocation";
 import { buildPathNetwork, simplifyPath } from "./pathGeometry";
+import entranceIcon from "./assets/park-entrance.svg";
 import {
   isPointInPark,
-  isParkEntrance,
   isParkLandmark,
-  type ParkEntrance,
   type ParkLandmark,
   type ParkPlan,
-  type PlanPosition,
 } from "./plan";
 
 type MapViewProps = {
@@ -122,106 +120,6 @@ function isNearCurrentPark(location: UserLocation, plan: ParkPlan | null) {
 }
 
 const PLAN_HEIGHT = 0.25;
-const ENTRANCE_MARKER_OFFSET_METRES = 18;
-const ENTRANCE_ARROW_DEFAULT_LENGTH_METRES = 7;
-const ENTRANCE_ARROW_SCREEN_LENGTH_PIXELS = 20;
-
-type EntranceMarker = { footprint: PlanPosition[] };
-
-/** Flèche posée sur le sol : elle reste orientée vers le portail en vue 3D. */
-function entranceMarker(
-  plan: ParkPlan,
-  entrance: ParkEntrance,
-  arrowLength = ENTRANCE_ARROW_DEFAULT_LENGTH_METRES,
-): EntranceMarker {
-  const boundary = plan.features.find((feature) => feature.properties.kind === "boundary");
-  if (!boundary || boundary.geometry.type !== "MultiPolygon") {
-    return { footprint: [entrance.geometry.coordinates] };
-  }
-
-  const entrancePosition = entrance.geometry.coordinates;
-  const longitudeScale = 111_320 * Math.cos(CesiumMath.toRadians(entrancePosition[1]));
-  const toLocal = ([longitude, latitude]: PlanPosition): [number, number] => [
-    (longitude - entrancePosition[0]) * longitudeScale,
-    (latitude - entrancePosition[1]) * 111_320,
-  ];
-  const fromLocal = ([x, y]: [number, number]): PlanPosition => [
-    entrancePosition[0] + x / longitudeScale,
-    entrancePosition[1] + y / 111_320,
-  ];
-
-  let closest: [number, number] | null = null;
-  let normal: [number, number] | null = null;
-  let closestDistanceSquared = Number.POSITIVE_INFINITY;
-  for (const polygon of boundary.geometry.coordinates) {
-    for (const ring of polygon) {
-      for (let index = 1; index < ring.length; index++) {
-        const start = toLocal(ring[index - 1]);
-        const end = toLocal(ring[index]);
-        const dx = end[0] - start[0];
-        const dy = end[1] - start[1];
-        const lengthSquared = dx * dx + dy * dy;
-        if (!lengthSquared) continue;
-        const t = Math.max(0, Math.min(1, -(start[0] * dx + start[1] * dy) / lengthSquared));
-        const point: [number, number] = [start[0] + t * dx, start[1] + t * dy];
-        const distanceSquared = point[0] * point[0] + point[1] * point[1];
-        if (distanceSquared < closestDistanceSquared) {
-          closestDistanceSquared = distanceSquared;
-          closest = point;
-          const length = Math.sqrt(lengthSquared);
-          normal = [-dy / length, dx / length];
-        }
-      }
-    }
-  }
-
-  if (!closest || !normal) return { footprint: [entrancePosition] };
-
-  const positive: [number, number] = [
-    closest[0] + normal[0] * ENTRANCE_MARKER_OFFSET_METRES,
-    closest[1] + normal[1] * ENTRANCE_MARKER_OFFSET_METRES,
-  ];
-  const negative: [number, number] = [
-    closest[0] - normal[0] * ENTRANCE_MARKER_OFFSET_METRES,
-    closest[1] - normal[1] * ENTRANCE_MARKER_OFFSET_METRES,
-  ];
-  const marker = !isPointInPark(plan, fromLocal(positive)) ? positive : negative;
-  const targetX = -marker[0];
-  const targetY = -marker[1];
-  const targetLength = Math.hypot(targetX, targetY);
-  const direction: [number, number] = targetLength
-    ? [targetX / targetLength, targetY / targetLength]
-    : [-normal[0], -normal[1]];
-  const side: [number, number] = [-direction[1], direction[0]];
-  const point = (forward: number, sideways: number): PlanPosition => fromLocal([
-    marker[0] + direction[0] * forward + side[0] * sideways,
-    marker[1] + direction[1] * forward + side[1] * sideways,
-  ]);
-  const halfLength = arrowLength / 2;
-  const scale = arrowLength / ENTRANCE_ARROW_DEFAULT_LENGTH_METRES;
-
-  return {
-    footprint: [
-      point(halfLength, 0),
-      point(0, 1.9 * scale),
-      point(0, 0.75 * scale),
-      point(-halfLength, 0.75 * scale),
-      point(-halfLength, -0.75 * scale),
-      point(0, -0.75 * scale),
-      point(0, -1.9 * scale),
-    ],
-  };
-}
-
-function entranceArrowLength(viewer: Viewer, entrance: ParkEntrance) {
-  const center = Cartesian3.fromDegrees(...entrance.geometry.coordinates, PLAN_HEIGHT);
-  const metresPerPixel = viewer.camera.getPixelSize(
-    new BoundingSphere(center, 1),
-    viewer.scene.drawingBufferWidth,
-    viewer.scene.drawingBufferHeight,
-  );
-  return Math.max(4, Math.min(12, metresPerPixel * ENTRANCE_ARROW_SCREEN_LENGTH_PIXELS));
-}
 
 const TREE_TRUNK_COLOR =
   Color.fromCssColorString("#735039");
@@ -2580,18 +2478,17 @@ export default function MapView(
 
       plan?.features.forEach(
         (feature) => {
-          if (isParkEntrance(feature)) {
+          if (feature.geometry.type === "Point") {
             viewer.entities.add({
               id: feature.id,
               name: "Entrée",
-              polygon: {
-                hierarchy: new CallbackProperty(() => new PolygonHierarchy(positions(
-                  entranceMarker(plan, feature, entranceArrowLength(viewer, feature)).footprint,
-                  PLAN_HEIGHT + 0.08,
-                )), false),
-                perPositionHeight: true,
-                material: Color.fromCssColorString("#c65d3b"),
-                outline: false,
+              position: Cartesian3.fromDegrees(...feature.geometry.coordinates, PLAN_HEIGHT + 0.5),
+              billboard: {
+                image: entranceIcon,
+                width: 18,
+                height: 18,
+                verticalOrigin: VerticalOrigin.BOTTOM,
+                disableDepthTestDistance: Number.POSITIVE_INFINITY,
               },
             });
             return;
