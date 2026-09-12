@@ -922,7 +922,7 @@ export default function App() {
       </div>
       <p>Les positions et caractéristiques présentées proviennent d’un inventaire ; elles ne constituent pas une observation en temps réel.</p>
       <dl className="info-list">
-        <div><dt>Version</dt><dd>V1.4 · Rennes Métropole</dd></div>
+        <div><dt>Version</dt><dd>V1.4</dd></div>
         <div><dt>Inventaire</dt><dd><a href={SOURCE_URL} target="_blank" rel="noreferrer">Rennes Métropole</a> · <a href="https://opendatacommons.org/licenses/odbl/1-0/" target="_blank" rel="noreferrer">ODbL 1.0</a></dd></div>
         {data && <div><dt>Extrait</dt><dd>{dateLabel(data.metadata.imported_at)} · <a href={treeDataUrl} download>GeoJSON</a></dd></div>}
         <div><dt>Couverture</dt><dd>Points GPS contenus dans l’emprise officielle du parc ; les champs descriptifs ne servent pas à la sélection.</dd></div>
