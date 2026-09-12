@@ -1623,6 +1623,9 @@ export default function MapView(
   const viewerRef =
     useRef<Viewer | null>(null);
 
+  const changeZoomInRef =
+    useRef<(() => void) | null>(null);
+
   const treePrimitivesRef =
     useRef<PrimitiveCollection | null>(
       null,
@@ -2148,6 +2151,10 @@ export default function MapView(
         ScreenSpaceEventType.LEFT_DOUBLE_CLICK,
       );
 
+      const zoomInOnDoubleClick = () => {
+        changeZoomInRef.current?.();
+      };
+
       /*
        * Geste Android Maps : un premier tap, puis un second tap maintenu,
        * avec déplacement vertical pour zoomer. Le contrôleur Cesium est
@@ -2270,6 +2277,7 @@ export default function MapView(
       };
 
       const canvas = viewer.scene.canvas;
+      canvas.addEventListener("dblclick", zoomInOnDoubleClick);
       canvas.addEventListener("pointerdown", beginOrRememberTouch, true);
       canvas.addEventListener("pointermove", updateTouchZoom, true);
       canvas.addEventListener("pointerup", endTouchZoom, true);
@@ -2277,6 +2285,7 @@ export default function MapView(
       canvas.addEventListener("pointerup", rememberTouchTap);
 
       cleanups.push(() => {
+        canvas.removeEventListener("dblclick", zoomInOnDoubleClick);
         canvas.removeEventListener("pointerdown", beginOrRememberTouch, true);
         canvas.removeEventListener("pointermove", updateTouchZoom, true);
         canvas.removeEventListener("pointerup", endTouchZoom, true);
@@ -3980,6 +3989,8 @@ export default function MapView(
       direction === "in" ? 0.78 : 1.28,
     );
   };
+
+  changeZoomInRef.current = () => changeZoom("in");
 
   const orientNorth = () => {
     const viewer = viewerRef.current;
